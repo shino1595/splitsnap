@@ -24,7 +24,7 @@ this PC. Because the app always comes from the same Expo project, its saved data
 between launches **and across app updates**. That's better than the saved Snack, where every code
 update meant a new Snack and empty data.
 
-### Phase 0: prove it works first (small, about 2–4% of a weekly limit)
+### Phase 0: prove it works first (small, about 2–4% of a weekly limit). Done; the test app (`eas-probe`) was removed afterwards.
 
 1. A tiny SDK 58 test app: a counter saved on the phone, plus "last opened at".
 2. Publish it with a GitHub Actions run that calls `eas update`.
