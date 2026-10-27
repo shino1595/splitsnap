@@ -9,3 +9,4 @@ Plans and lists for upcoming work. Nothing here is built until the user approves
 | 02 | [SplitSnap vs Splitwise: what's missing](02_Splitwise_Gap_Analysis.md) | List only | 2026-10-20 |
 | 03 | [Improvement backlog by category](03_Improvement_Backlog.md) | Backlog, not started | 2026-10-20 |
 | 04 | [Run on iPhone with saved data: publish with EAS Update](04_Publish_With_EAS_Update.md) | Phase 0 proven; Phases 1–2 built (SDK 58 + auto-publish) | 2026-10-27 |
+| 05 | [Shared groups for a live test with friends (Option A, then B)](05_Shared_Groups_Live_Test.md) | Plan, waiting for approval | 2026-10-27 |
