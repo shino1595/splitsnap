@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "name": "SplitSnap",
+    "slug": "splitsnap",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "runtimeVersion": { "policy": "sdkVersion" },
+    "updates": { "url": "https://u.expo.dev/e2a3167d-0539-40eb-8acf-3593c97841b5" },
+    "extra": { "eas": { "projectId": "e2a3167d-0539-40eb-8acf-3593c97841b5" } }
+  }
+}

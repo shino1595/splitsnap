@@ -29,7 +29,7 @@ export interface ScreenProps {
   style?: StyleProp<ViewStyle>;
   testID?: string;
   /** The ScrollView (when scroll is true), e.g. to scroll to a comment that was just added. */
-  scrollRef?: React.Ref<ScrollView>;
+  scrollRef?: React.Ref<React.ComponentRef<typeof ScrollView>>;
 }
 
 /** Room under scrolling content so the last row clears a Fab. FlatList screens (scroll=false)
@@ -73,10 +73,10 @@ export function Screen({
   // with edge-to-edge (SDK 55) the window is no longer resized for the keyboard; where it
   // still is, the computed overlap is simply 0.
   const avoidKeyboard = keyboard && Platform.OS !== 'web';
-  const rootRef = React.useRef<View>(null);
+  const rootRef = React.useRef<React.ComponentRef<typeof View>>(null);
   const [keyboardOffset, setKeyboardOffset] = React.useState(0);
   const measureOffset = React.useCallback(() => {
-    rootRef.current?.measureInWindow((_x, y) => {
+    rootRef.current?.measureInWindow((_x: number, y: number) => {
       if (Number.isFinite(y)) setKeyboardOffset(y);
     });
   }, []);

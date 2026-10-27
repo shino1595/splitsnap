@@ -65,7 +65,7 @@ export interface TextFieldProps {
   right?: React.ReactNode;
   selectTextOnFocus?: boolean;
   /** Lets a screen focus the input from code (e.g. after clearing it). */
-  inputRef?: React.Ref<TextInput>;
+  inputRef?: React.Ref<React.ComponentRef<typeof TextInput>>;
 }
 
 export function TextField({

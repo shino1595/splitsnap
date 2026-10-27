@@ -23,13 +23,17 @@ It is a prototype. It runs in **Expo Snack** (Expo's free online editor) and in 
      take a minute to start), or
    - use **My Device** to run the app on your own phone (see below).
 
-### On an iPhone
-1. Install **Expo Go** from the App Store. It runs SDK 54 projects, which is what SplitSnap uses.
-2. Create a **free Expo account** at [expo.dev/signup](https://expo.dev/signup) (no payment).
-3. Sign in to that account in **Expo Go** and in **Snack** (**Log in**, at the top left of the
-   full editor).
-4. In the full editor open **My Device** and scan the QR code with the iPhone **Camera** app.
-   You can also open the project from Expo Go's home screen.
+### On an iPhone (published app: your data is kept)
+The App Store's Expo Go now runs **SDK 58**, which Snack can't build, so the iPhone uses the
+**published** app instead. Every push to GitHub publishes it automatically through Expo's free
+update service (`.github/workflows/publish.yml`). Your data stays on the phone across restarts
+and new versions.
+1. In **Expo Go**, sign in to your free Expo account.
+2. On expo.dev, open **SplitSnap → Over-the-air updates → Update groups**, open the newest
+   update and scan its QR code with the iPhone **Camera**. After that it is under **Recently
+   opened** in Expo Go.
+3. Snack's in-browser iPhone simulator (**iOS** in the full editor) still works for quick looks,
+   but it doesn't keep data.
 
 ### On an Android phone
 1. Install **Expo Go for SDK 54**. Use the Play Store version if it supports SDK 54. If it is

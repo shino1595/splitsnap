@@ -82,7 +82,7 @@ function Separator() {
 export default function SearchScreen({ navigation }: RootScreenProps<'Search'>) {
   const state = useAppState();
   const [query, setQuery] = React.useState('');
-  const inputRef = React.useRef<TextInput>(null);
+  const inputRef = React.useRef<React.ComponentRef<typeof TextInput>>(null);
   // The clear button disappears with the text, so focus goes back to the box (keeps the keyboard up).
   const clear = () => {
     setQuery('');

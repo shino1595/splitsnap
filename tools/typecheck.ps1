@@ -61,7 +61,7 @@ param(
     [int]$TimeoutSec = 300,
     [int]$VirtualTimeBudgetMs = 120000,
     # Expo SDK whose library versions the code is checked against (54 = what Snack and the App Store Expo Go run).
-    [ValidateSet('54', '55')] [string]$Sdk = '54'
+    [ValidateSet('54', '55', '58')] [string]$Sdk = '54'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -94,6 +94,19 @@ $pins = [ordered]@{
     'expo-font'                                 = '~55.0.0'
     'expo'                                      = '~55.0.0'
     '@expo/vector-icons'                        = '15.0.2'
+}
+if ($Sdk -eq '58') {
+    # The real Expo project published with EAS Update (iPhone Expo Go runs SDK 58): expo@58.0.19.
+    $pins['@types/react'] = '~19.3.0'
+    $pins['react-native'] = '0.88.0'
+    $pins['react-native-safe-area-context'] = '~5.10.1'
+    $pins['react-native-screens'] = '~4.30.0'
+    $pins['expo-image-picker'] = '~58.0.10'
+    $pins['expo-image-manipulator'] = '~58.0.15'
+    $pins['expo-modules-core'] = '~58.0.26'
+    $pins['expo-font'] = '~58.0.10'
+    $pins['expo'] = '~58.0.19'
+    $pins['@expo/vector-icons'] = '^15.0.2'
 }
 if ($Sdk -eq '54') {
     # bundledNativeModules.json of expo@54.0.37 (react-native 0.81.5, react 19.1.0).

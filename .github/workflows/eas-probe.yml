@@ -3,12 +3,8 @@
 name: Publish probe (EAS Update)
 
 on:
+  # Manual only: the probe proved the setup on 2026-10-27; publish.yml now publishes the real app.
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'eas-probe/**'
-      - '.github/workflows/eas-probe.yml'
 
 jobs:
   update:

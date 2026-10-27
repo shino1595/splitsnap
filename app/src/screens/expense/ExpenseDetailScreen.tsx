@@ -381,7 +381,7 @@ export default function ExpenseDetailScreen({ navigation, route }: Props) {
   );
 
   // After posting a comment, bring it into view (it is added at the bottom of the page).
-  const scrollRef = React.useRef<ScrollView>(null);
+  const scrollRef = React.useRef<React.ComponentRef<typeof ScrollView>>(null);
   const commentCount = expense ? expense.comments.length : 0;
   const sentRef = React.useRef(false);
   React.useEffect(() => {

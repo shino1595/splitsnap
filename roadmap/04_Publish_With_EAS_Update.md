@@ -1,6 +1,6 @@
 # Plan: run SplitSnap on an iPhone 15 Pro, with saved data, without Snack
 
-Status: **plan, waiting for approval** (2026-10-27).
+Status: **Phase 0 proven on the iPhone (2026-10-27): it opened and saved data survived a full restart. Phase 1 (SplitSnap on SDK 58) and Phase 2 (publish on every push) built 2026-10-27.**
 
 ## Problem
 

@@ -1,0 +1,39 @@
+# Publishes SplitSnap (app/) with EAS Update on every push to main that changes the app, so
+# the iPhone's Expo Go (SDK 58) gets the new version. Runs on GitHub's servers; needs the repo
+# secret EXPO_TOKEN. See roadmap/04_Publish_With_EAS_Update.md.
+name: Publish SplitSnap (EAS Update)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - '.github/workflows/publish.yml'
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Check versions match Expo SDK 58
+        run: npx expo install --check
+
+      - name: Publish update
+        run: eas update --branch main --message "SplitSnap ${{ github.sha }}" --environment production --non-interactive

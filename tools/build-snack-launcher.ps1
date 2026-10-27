@@ -83,8 +83,12 @@ $totalBytes = 0
 $skipped = New-Object Collections.Generic.List[string]
 $emptied = New-Object Collections.Generic.List[string]
 
+# app/ is also the real Expo project published with EAS Update (SDK 58). Its project files would
+# make Snack switch SDK or entry point, so they stay out of the Snack.
+$expoProjectFiles = @('package.json', 'package-lock.json', 'app.json', 'eas.json', 'index.js', 'tsconfig.json', 'babel.config.js', 'metro.config.js')
 $all = Get-ChildItem -LiteralPath $appDir -Recurse -File |
     Where-Object { $_.FullName -notmatch '[\\/](node_modules|\.[^\\/]+)[\\/]' -and $_.Name -notlike '.*' } |
+    Where-Object { -not ($_.DirectoryName -eq $appDir -and $expoProjectFiles -contains $_.Name) } |
     Sort-Object FullName
 foreach ($f in $all) {
     $rel = Get-RelativePath $appDir $f.FullName
