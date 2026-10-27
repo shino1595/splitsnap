@@ -1,0 +1,38 @@
+# Phase 0 proof (roadmap/04): publish eas-probe/ with EAS Update so Expo Go (SDK 58) on an
+# iPhone can open it. Runs on GitHub's servers; needs the repo secret EXPO_TOKEN.
+name: Publish probe (EAS Update)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'eas-probe/**'
+      - '.github/workflows/eas-probe.yml'
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: eas-probe
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Check versions match Expo SDK 58
+        run: npx expo install --check
+
+      - name: Publish update
+        run: eas update --branch main --message "Probe ${{ github.sha }}" --environment production --non-interactive

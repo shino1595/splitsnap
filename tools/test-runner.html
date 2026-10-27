@@ -1,0 +1,26 @@
+<!doctype html>
+<!--
+  SplitSnap unit-test harness page. Normally opened by tools/run-tests.ps1 in headless Edge,
+  which generates .out/test-sources.js first. Opening it in a normal browser after a run
+  re-runs the last generated bundle and shows a plain-text summary.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>SplitSnap test runner</title>
+  <style>
+    body { font: 14px/1.5 Consolas, monospace; margin: 16px; background: #fff; color: #1f2a2e; }
+    pre { white-space: pre-wrap; word-break: break-word; }
+    #splitsnap-results { display: none; }
+  </style>
+</head>
+<body>
+  <h1>SplitSnap test runner</h1>
+  <pre id="splitsnap-progress">starting</pre>
+  <pre id="summary"></pre>
+  <pre id="splitsnap-results">pending</pre>
+  <script src=".out/test-sources.js" onerror="window.__SOURCES_LOAD_ERROR__ = true"></script>
+  <script src="https://cdn.jsdelivr.net/npm/typescript@5.9.3/lib/typescript.js" onerror="window.__TS_LOAD_ERROR__ = true"></script>
+  <script src="test-runner.js"></script>
+</body>
+</html>

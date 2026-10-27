@@ -1,0 +1,16 @@
+# Scratch output, caches and headless-browser profiles (profiles hold cookies: never commit them)
+tools/.out/
+tools/.cache/
+tools/.edge-profile*/
+tools/ocr-live/.edge-profile/
+tools/ocr-live/out/
+tools/selftest/**/.edge-profile*/
+
+# Generated launcher (rebuild with tools\build-snack-launcher.ps1)
+open-in-snack.html
+
+# Expo / Node projects are installed and built in GitHub Actions, never here
+node_modules/
+.expo/
+dist/
+*.log

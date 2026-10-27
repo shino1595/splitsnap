@@ -1,0 +1,28 @@
+<!doctype html>
+<!--
+  SplitSnap type-check harness page. Normally opened by tools/typecheck.ps1 in headless Edge,
+  which generates .out/typecheck-input.js first. Opening it in a normal browser after a run
+  re-checks the last generated input and lists the diagnostics.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>SplitSnap type check</title>
+  <style>
+    body { font: 14px/1.5 Consolas, monospace; margin: 16px; background: #fff; color: #1f2a2e; }
+    pre { white-space: pre-wrap; word-break: break-word; }
+    #typecheck-results { display: none; }
+  </style>
+</head>
+<body>
+  <h1>SplitSnap type check</h1>
+  <pre id="typecheck-progress">starting</pre>
+  <pre id="summary"></pre>
+  <pre id="typecheck-results">pending</pre>
+  <script src=".out/typecheck-input.js" onerror="window.__INPUT_LOAD_ERROR__ = true"></script>
+  <!-- Optional: jsDelivr responses saved by earlier runs (absent on the first run). -->
+  <script src=".cache/typecheck-cache.js" onerror="window.__TYPECHECK_CACHE__ = null"></script>
+  <script src="https://cdn.jsdelivr.net/npm/typescript@5.9.3/lib/typescript.js" onerror="window.__TS_LOAD_ERROR__ = true"></script>
+  <script src="typecheck.js"></script>
+</body>
+</html>
