@@ -31,6 +31,7 @@ import { advance, dueDates } from '../lib/recurrence';
 import { canDeleteGroup, canRemoveFriend, canRemoveGroupMember } from './selectors';
 import { blankState } from './stateShape';
 import * as text from './activityText';
+import type { ImportPlan } from '../lib/splitwiseImport';
 
 /** Oldest entries beyond this are dropped so the saved state stays small. */
 export const MAX_ACTIVITY = 500;
@@ -81,6 +82,8 @@ export type AppAction =
   | ({ type: 'comment/add'; expenseId: ID; commentId: ID; text: string } & Stamp)
   | ({ type: 'payment/add'; id: ID; input: PaymentInput } & Stamp)
   | ({ type: 'payment/delete'; id: ID } & Stamp)
+  /** Adds a whole Splitwise export at once (friends, group, expenses, payments) with one Activity entry. */
+  | ({ type: 'import/apply'; plan: ImportPlan } & Stamp)
   | ({ type: 'settings/update'; patch: Partial<Settings> } & Stamp)
   /** Materialise due copies of recurring expenses; new ids are `${idBase}_<n>` / `${idBase}_a<n>`. */
   | { type: 'recurring/process'; today: ISODate; at: ISODateTime; idBase: string };
@@ -542,6 +545,43 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         paymentId: deleted.id,
         amount: deleted.amount,
         currency: deleted.currency,
+      });
+    }
+
+    case 'import/apply': {
+      const plan = action.plan;
+      if (state.groups[plan.groupId]) return state;
+      const people = { ...state.people };
+      const friendIds = [...state.friendIds];
+      for (const f of plan.newFriends) {
+        if (people[f.id]) continue;
+        people[f.id] = buildPerson({ ...state, people }, f.id, { name: f.name }, action.at);
+        friendIds.push(f.id);
+      }
+      let next: AppState = { ...state, people, friendIds };
+      const group = buildGroup(next, plan.groupId, plan.group, action.at);
+      next = withFriends({ ...next, groups: { ...next.groups, [group.id]: group } }, group.memberIds);
+
+      // Every expense goes through the same validation as one added by hand.
+      const expenses = { ...next.expenses };
+      let added = 0;
+      for (const item of plan.expenses) {
+        if (expenses[item.id]) continue;
+        const { expense } = buildExpense({ ...next, expenses }, item.input, { id: item.id, at: action.at, createdBy: actorOf(action) });
+        if (!expense) continue;
+        expenses[expense.id] = expense;
+        added++;
+      }
+      const payments = { ...next.payments };
+      let paid = 0;
+      for (const item of plan.payments) {
+        if (payments[item.id] || validatePaymentInput(next, item.input).length > 0) continue;
+        payments[item.id] = buildPayment(item.id, item.input, action.at);
+        paid++;
+      }
+      next = { ...next, expenses, payments };
+      return addActivity(next, action, 'group_created', text.groupImportedText(next, actorOf(action), group, added, paid), {
+        groupId: group.id,
       });
     }
 

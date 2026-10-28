@@ -70,6 +70,12 @@ export function groupCreatedText(state: AppState, actorId: ID, g: Pick<Group, 'n
   return `${subject(state, actorId)} created the group "${g.name}".`;
 }
 
+export function groupImportedText(state: AppState, actorId: ID, g: Pick<Group, 'name'>, expenses: number, payments: number): string {
+  const parts = [`${expenses} expense${expenses === 1 ? '' : 's'}`];
+  if (payments > 0) parts.push(`${payments} payment${payments === 1 ? '' : 's'}`);
+  return `${subject(state, actorId)} imported ${parts.join(' and ')} from Splitwise into "${g.name}".`;
+}
+
 export function groupUpdatedText(state: AppState, actorId: ID, before: Group, after: Group): string {
   const who = subject(state, actorId);
   if (before.name !== after.name) return `${who} renamed "${before.name}" to "${after.name}".`;

@@ -19,6 +19,7 @@ import type { RootStackParamList, TabParamList } from './types';
 import ActivityScreen from '../screens/activity/ActivityScreen';
 import AccountScreen from '../screens/account/AccountScreen';
 import SettingsScreen from '../screens/account/SettingsScreen';
+import ImportSplitwiseScreen from '../screens/import/ImportSplitwiseScreen';
 import AddExpenseScreen from '../screens/expense/AddExpenseScreen';
 import ExpenseDetailScreen from '../screens/expense/ExpenseDetailScreen';
 import PaidByScreen from '../screens/expense/PaidByScreen';
@@ -55,7 +56,7 @@ const stackScreenOptions = (): NativeStackNavigationOptions => ({
 
 /**
  * Editor screens (AddExpense, SplitOptions, PaidBy, ScanBill, ItemizedSplit, SettleUp,
- * FriendEdit, GroupEdit) slide up as modals on iOS, where a modal has no back button, so they
+ * FriendEdit, GroupEdit, ImportSplitwise) slide up as modals on iOS, where a modal has no back button, so they
  * get a close button. Android uses a normal push (sliding up, so it still reads as an editor)
  * and web a plain push, both with the usual back arrow.
  */
@@ -201,6 +202,11 @@ export default function RootNavigator() {
 
       <Stack.Screen name="Search" component={SearchScreen} options={{ title: 'Search' }} />
       <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Settings' }} />
+      <Stack.Screen
+        name="ImportSplitwise"
+        component={ImportSplitwiseScreen}
+        options={({ navigation }) => modal(navigation, 'Import from Splitwise')}
+      />
     </Stack.Navigator>
   );
 }

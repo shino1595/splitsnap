@@ -14,3 +14,7 @@ node_modules/
 .expo/
 dist/
 *.log
+
+# Real exports from Splitwise etc. (friends' names and amounts): never commit
+inputs/
+tests/private/

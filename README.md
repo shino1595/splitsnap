@@ -53,6 +53,10 @@ If the phone shows an error screen, tap **View error log** to see the details.
 - Each group has a timeline by month, its balances (who owes whom, with Settle up and Remind),
   totals with charts (by category, month and payer) and a CSV export.
 - Groups can be archived, and deleted once everyone is settled up.
+- **Import from Splitwise** (Groups tab or Settings): choose a group's Splitwise
+  "Export as spreadsheet" CSV (or paste its text). Pick which column is you, name the group, and
+  bring over every expense and payment, or only the final balances. The preview checks the result
+  against the file's "Total balance" row before anything is saved.
 
 **Friends**
 - Add, edit and remove friends, and add a removed friend back.
@@ -80,8 +84,8 @@ If the phone shows an error screen, tap **View error log** to see the details.
 - An **Activity** feed of everything that happened.
 - **Search** across descriptions, bill items, notes and people.
 - **Account:** your name and colour, default currency, **Appearance** (System / Light / Dark mode), and your totals.
-- **Settings:** bill scanning key and engine, defaults, export everything as CSV, reset the
-  demo data, or clear all data.
+- **Settings:** bill scanning key and engine, defaults, export everything as CSV, import a
+  Splitwise group, reset the demo data, or clear all data.
 
 ---
 
@@ -156,6 +160,8 @@ splits as ₹120 / ₹60 / ₹120 / ₹60.
 Everything is stored **only on the device or browser** that runs the app: no account, no server,
 no sync. The only thing that leaves the device is a bill photo when you scan it (it goes to
 OCR.space).
+
+An imported Splitwise file is read on the phone; it is not uploaded anywhere.
 
 To start over, use **Account → Settings**:
 - **Reset demo data** loads the sample groups and friends again and keeps your name and key.

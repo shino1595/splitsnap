@@ -8,6 +8,7 @@ import { newId } from '../lib/ids';
 import { todayISO } from '../lib/dates';
 import { appReducer, buildExpense, validatePaymentInput } from './reducer';
 import type { AppAction } from './reducer';
+import type { ImportPlan } from '../lib/splitwiseImport';
 import { canDeleteGroup, canRemoveFriend, canRemoveGroupMember } from './selectors';
 import { createDemoState, createEmptyState } from './seed';
 import { loadState, saveState } from './persistence';
@@ -29,6 +30,8 @@ export interface StoreActions {
   removeGroupMember(groupId: ID, personId: ID): { ok: boolean; reason?: string };
   /** Refuses unless everyone is settled; deletes the group's expenses and payments. */
   deleteGroup(id: ID): { ok: boolean; reason?: string };
+  /** Adds a Splitwise export (see lib/splitwiseImport) in one step. Counts are what was actually added. */
+  importFromSplitwise(plan: ImportPlan): { groupId: ID; expenses: number; payments: number };
   /** Validates payers + computeOwed; nothing is saved when there are errors. */
   addExpense(input: ExpenseInput): { expense?: Expense; errors: string[] };
   updateExpense(id: ID, input: ExpenseInput): { expense?: Expense; errors: string[] };
@@ -169,6 +172,17 @@ export function AppStoreProvider(props: { children: React.ReactNode }): React.JS
         const check = canRemoveGroupMember(current(), groupId, personId);
         if (check.ok) dispatch({ type: 'group/removeMember', groupId, personId, ...stamp() });
         return check;
+      },
+
+      importFromSplitwise(plan) {
+        dispatch({ type: 'import/apply', plan, ...stamp() });
+        const state = current();
+        const live = (groupId: ID | null) => groupId === plan.groupId;
+        return {
+          groupId: plan.groupId,
+          expenses: Object.values(state.expenses).filter((e) => live(e.groupId)).length,
+          payments: Object.values(state.payments).filter((p) => live(p.groupId)).length,
+        };
       },
 
       deleteGroup(id) {

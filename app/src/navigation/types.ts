@@ -54,6 +54,8 @@ export type RootStackParamList = {
   Search: undefined;
   /** OCR key/engine, default currency, export, reset demo data. */
   Settings: undefined;
+  /** Reads a Splitwise "Export as spreadsheet" CSV and creates a group from it. */
+  ImportSplitwise: undefined;
 };
 
 export type RootScreenProps<T extends keyof RootStackParamList> = NativeStackScreenProps<RootStackParamList, T>;

@@ -133,6 +133,7 @@ export default function GroupsScreen({ navigation }: Props) {
 
   const openGroup = (groupId: string) => navigation.navigate('GroupDetail', { groupId });
   const newGroup = () => navigation.navigate('GroupEdit');
+  const importGroup = () => navigation.navigate('ImportSplitwise');
 
   if (rows.current.length === 0 && rows.archived.length === 0 && nonGroup.entries.length === 0) {
     return (
@@ -144,6 +145,7 @@ export default function GroupsScreen({ navigation }: Props) {
           actionTitle="Start a new group"
           onAction={newGroup}
         />
+        <Button title="Import from Splitwise" icon="download-outline" variant="ghost" onPress={importGroup} fullWidth testID="groups-import" />
       </Screen>
     );
   }
@@ -172,6 +174,15 @@ export default function GroupsScreen({ navigation }: Props) {
         onPress={newGroup}
         fullWidth
         style={styles.newGroup}
+      />
+      <Button
+        title="Import from Splitwise"
+        icon="download-outline"
+        variant="ghost"
+        onPress={importGroup}
+        fullWidth
+        style={styles.importGroup}
+        testID="groups-import"
       />
 
       {nonGroup.entries.length > 0 ? (
@@ -258,6 +269,7 @@ const styles = themed((colors) => StyleSheet.create({
   rowMeta: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   shrink: { flexShrink: 1 },
   newGroup: { marginTop: spacing.lg },
+  importGroup: { marginTop: spacing.xs },
   section: { marginTop: spacing.lg },
   archivedToggle: { alignSelf: 'center' },
 }));

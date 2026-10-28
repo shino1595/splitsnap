@@ -125,6 +125,14 @@ export default function SettingsScreen({ navigation }: RootScreenProps<'Settings
           accessibilityLabel="Export all expenses and payments as a CSV file"
         />
         <ListItem
+          left={<RowIcon icon="download-outline" />}
+          title="Import from Splitwise"
+          subtitle="Create a group from a Splitwise spreadsheet export"
+          onPress={() => navigation.navigate('ImportSplitwise')}
+          showChevron
+          testID="settings-import"
+        />
+        <ListItem
           left={<RowIcon icon="refresh-outline" color={colors.info} background={colors.infoSoft} />}
           title="Reset demo data"
           subtitle="Replace everything with the sample groups and expenses"

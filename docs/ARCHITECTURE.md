@@ -20,6 +20,7 @@ it (new exports are fine) but never change an existing signature.
    `react`, `react-native`, `@react-navigation/native`, `@react-navigation/native-stack`,
    `@react-navigation/bottom-tabs`, `react-native-safe-area-context`, `react-native-screens`,
    `@react-native-async-storage/async-storage`, `expo-image-picker`, `expo-image-manipulator`,
+   `expo-document-picker` (loaded with `import()`, like the photo libraries),
    `@expo/vector-icons` (use **Ionicons** only, with glyph names that exist in Ionicons 7, e.g.
    `restaurant-outline`, `cart-outline`, `car-outline`, `camera-outline`, `images-outline`,
    `people-outline`, `person-outline`, `receipt-outline`, `add`, `close`, `checkmark`,
@@ -602,7 +603,7 @@ Edge profile). Nothing is installed or written outside the topic folder.
   the app is about 900 KB. Re-run the script after every app change.
 
 Snack dependencies (versions pinned where Snack can't infer them):
-`@react-navigation/native@7.5.0,@react-navigation/native-stack@7.20.0,@react-navigation/bottom-tabs@7.20.0,react-native-screens,react-native-safe-area-context,@react-native-async-storage/async-storage,expo-image-picker,expo-image-manipulator,@expo/vector-icons`
+`@react-navigation/native@7.5.0,@react-navigation/native-stack@7.20.0,@react-navigation/bottom-tabs@7.20.0,react-native-screens,react-native-safe-area-context,@react-native-async-storage/async-storage,expo-image-picker,expo-image-manipulator,expo-document-picker,@expo/vector-icons`
 
 ---------------------------------------------------------------------------------------------
 ## 10. Why Expo SDK 54 (decided 2026-10-16, tested in Snack)
