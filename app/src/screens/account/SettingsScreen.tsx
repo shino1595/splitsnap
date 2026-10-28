@@ -6,6 +6,7 @@ import { liveExpenses, livePayments } from '../../store/selectors';
 import { todayISO } from '../../lib/dates';
 import { AppText, Banner, Card, confirmAsync, ListItem, Screen, SectionHeader, shareCsv, showAlert, SwitchRow } from '../../ui';
 import { colors, spacing, themed } from '../../theme';
+import { isSyncConfigured } from '../../sync/config';
 import { buildFullExport } from './accountData';
 import { OcrSettingsCard } from './components/OcrSettingsCard';
 import { CurrencyPickerRow, ListCard, RowIcon } from './components/rows';
@@ -151,6 +152,22 @@ export default function SettingsScreen({ navigation }: RootScreenProps<'Settings
           accessibilityLabel="Clear all data"
         />
       </ListCard>
+
+      {isSyncConfigured() ? (
+        <>
+          <SectionHeader title="Shared groups" />
+          <ListCard>
+            <ListItem
+              left={<RowIcon icon="pulse-outline" />}
+              title="Test the connection"
+              subtitle="Sign in and get a live update back from the server"
+              onPress={() => navigation.navigate('SyncTest')}
+              showChevron
+              testID="settings-sync-test"
+            />
+          </ListCard>
+        </>
+      ) : null}
 
       <AppText variant="caption" align="center" style={styles.footnote}>
         SplitSnap keeps everything on this device. Bill photos are only sent to OCR.space when you scan one.

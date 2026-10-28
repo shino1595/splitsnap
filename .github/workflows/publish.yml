@@ -37,3 +37,10 @@ jobs:
 
       - name: Publish update
         run: eas update --branch main --message "SplitSnap ${{ github.sha }}" --environment production --non-interactive
+
+      # The fixed "always latest" link (roadmap/05) names channel "main", not an update, so the
+      # channel must exist and serve branch "main". Creating it fails harmlessly once it exists.
+      - name: Point channel main at branch main
+        run: |
+          eas channel:create main --non-interactive || echo "Channel main already exists."
+          eas channel:edit main --branch main --non-interactive

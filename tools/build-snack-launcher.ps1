@@ -69,7 +69,8 @@ if (-not (Test-Path -LiteralPath $appDir)) {
 # asking Snack to build it from npm fails ("Failed to resolve dependency react-native-screens@~4.23.0").
 $dependencies = '@react-navigation/native@7.5.0,@react-navigation/native-stack@7.20.0,@react-navigation/bottom-tabs@7.20.0,' +
     'react-native-safe-area-context,@react-native-async-storage/async-storage,' +
-    'expo-image-picker,expo-image-manipulator,expo-document-picker,@expo/vector-icons'
+    'expo-image-picker,expo-image-manipulator,expo-document-picker,@expo/vector-icons,' +
+    '@supabase/supabase-js,react-native-url-polyfill'
 
 # Snack's SDK 56 runtime still ships a preview `expo` package. expo-image-picker 56.0.7+ imports
 # createPermissionHook from `expo` and crashes there ("createPermissionHook is not a function");

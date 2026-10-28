@@ -95,6 +95,8 @@ $pins = [ordered]@{
     'expo-font'                                 = '~55.0.0'
     'expo'                                      = '~55.0.0'
     '@expo/vector-icons'                        = '15.0.2'
+    '@supabase/supabase-js'                     = '2.118.0'
+    'react-native-url-polyfill'                 = '4.0.0'
 }
 if ($Sdk -eq '58') {
     # The real Expo project published with EAS Update (iPhone Expo Go runs SDK 58): expo@58.0.19.
@@ -131,7 +133,7 @@ $allowedPackages = @(
     'react', 'react-native', '@react-navigation/native', '@react-navigation/native-stack',
     '@react-navigation/bottom-tabs', 'react-native-safe-area-context', 'react-native-screens',
     '@react-native-async-storage/async-storage', 'expo-image-picker', 'expo-image-manipulator', 'expo-document-picker',
-    '@expo/vector-icons'
+    '@expo/vector-icons', '@supabase/supabase-js', 'react-native-url-polyfill'
 )
 
 $compilerOptions = [ordered]@{

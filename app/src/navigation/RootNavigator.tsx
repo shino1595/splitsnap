@@ -20,6 +20,7 @@ import ActivityScreen from '../screens/activity/ActivityScreen';
 import AccountScreen from '../screens/account/AccountScreen';
 import SettingsScreen from '../screens/account/SettingsScreen';
 import ImportSplitwiseScreen from '../screens/import/ImportSplitwiseScreen';
+import SyncTestScreen from '../screens/sharing/SyncTestScreen';
 import AddExpenseScreen from '../screens/expense/AddExpenseScreen';
 import ExpenseDetailScreen from '../screens/expense/ExpenseDetailScreen';
 import PaidByScreen from '../screens/expense/PaidByScreen';
@@ -207,6 +208,7 @@ export default function RootNavigator() {
         component={ImportSplitwiseScreen}
         options={({ navigation }) => modal(navigation, 'Import from Splitwise')}
       />
+      <Stack.Screen name="SyncTest" component={SyncTestScreen} options={{ title: 'Shared groups test' }} />
     </Stack.Navigator>
   );
 }

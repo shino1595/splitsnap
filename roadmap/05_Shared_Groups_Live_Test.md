@@ -1,6 +1,8 @@
 # Plan: shared groups for a live test with friends (Option A), and how Option B builds on it
 
-Status: **plan, waiting for approval** (2026-10-27). Nothing below is built.
+Status: **Option A approved** (2026-10-28). **A0 in progress:** setup script `supabase/setup.sql`
+(start-over script `supabase/teardown.sql`) and the fixed app link are ready; waiting for your
+Supabase project (checklist below). A1–A3 not started.
 
 ## Goal
 
@@ -58,17 +60,32 @@ that doesn't mean re-sending QR codes.
 - **Deletes are soft** (marked, not removed). Live updates for deleted rows bypass the security
   rules, and soft deletes avoid that.
 
-### What you'd do (about 10 minutes, I'll guide you)
+### A0 checklist (about 10 minutes)
 
-1. Create a free account at supabase.com and a project (**Mumbai** region; choose a database
-   password and keep it yourself).
-   - **If it asks for a card, stop and tell me.** The docs don't say whether the free plan needs one.
-2. **Authentication → Providers:** turn on **Anonymous sign-ins**.
-3. **SQL editor:** paste the one setup script I provide (tables, security rules, join function,
-   live updates) and click Run.
-4. Send me the **project URL** and the **publishable key** (`sb_publishable_…`). Both are meant to
-   be in the app. Never send the secret key or the database password.
-5. Push to GitHub when I've committed.
+1. Sign up at **supabase.com** (a personal email or GitHub; not the work email) and create a
+   project: any name (e.g. `splitsnap`), region **Mumbai (ap-south-1)**, free plan. Supabase
+   asks for a database password: let it generate one and keep it yourself (password manager).
+   - **If it asks for a card or shows a price, stop and tell me.**
+2. **Authentication → Sign In / Providers:** switch on **Allow anonymous sign-ins** and save.
+3. **SQL Editor → New query:** paste all of `supabase/setup.sql`, click **Run**. It should say
+   "Success. No rows returned". If it shows an error, send me a screenshot; nothing is half-made,
+   because the script is all-or-nothing.
+4. **Project Settings → API Keys** (and **Data API** for the URL): send me the **Project URL**
+   (`https://<id>.supabase.co`) and the **publishable key** (`sb_publishable_…`). Both are meant
+   to be inside the app. **Never send the secret key (`sb_secret_…`) or the database password.**
+5. Push to GitHub when I've committed (one command, as before).
+
+### The fixed app link (part of A0)
+
+After the next publish, this one link always opens the **newest** version in Expo Go, so
+friends never need a new QR code:
+
+- QR code to scan with the iPhone camera (open on a computer):
+  `https://qr.expo.dev/eas-update?projectId=e2a3167d-0539-40eb-8acf-3593c97841b5&runtimeVersion=exposdk:58.0.0&channel=main`
+- The link inside it: `exp://u.expo.dev/e2a3167d-0539-40eb-8acf-3593c97841b5?runtime-version=exposdk%3A58.0.0&channel-name=main`
+
+It uses the EAS channel `main`, which the publish workflow now creates and points at branch
+`main` (format from Expo's QR-code docs, `slug=exp` = Expo Go).
 
 ### Steps and effort
 
@@ -96,8 +113,9 @@ that doesn't mean re-sending QR codes.
 ## Known limits of Option A (deliberate, for a test)
 
 - **The anonymous account is per phone.** If someone deletes Expo Go or its data, they can't sign
-  back in. They rejoin with the code and tap "That's me" to reclaim their member row. Option B
-  fixes this with email.
+  back in. To reclaim their member row, you (the project owner) delete their old user under
+  Authentication → Users; they then rejoin with the code and tap "That's me". Option B fixes
+  this with email.
 - **No push notifications** (Expo Go has none from SDK 53). Changes appear live while the app is
   open, and on next open otherwise.
 - **You own the project:** as its owner you can see all shared data in the Supabase dashboard.

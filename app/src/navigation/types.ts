@@ -56,6 +56,8 @@ export type RootStackParamList = {
   Settings: undefined;
   /** Reads a Splitwise "Export as spreadsheet" CSV and creates a group from it. */
   ImportSplitwise: undefined;
+  /** Roadmap 05 step A1: checks sign-in and a live update against the shared-groups server. */
+  SyncTest: undefined;
 };
 
 export type RootScreenProps<T extends keyof RootStackParamList> = NativeStackScreenProps<RootStackParamList, T>;
