@@ -4,7 +4,8 @@ Status: **Option A approved** (2026-10-28). **A0 done:** Supabase project set up
 `supabase/setup.sql`, fixed app link live. **A1 passed** on the iPhone on 2026-10-29: the first
 run of the connection test missed the round trip on a cold server, the second passed. **Cold-start
 fix shipped:** live updates now count as connected only once the server confirms them. **A2
-pushed** (04b3253). **Next:** your two-phone test with a throwaway group, then A3.
+pushed** (04b3253). **Two-phone test passed** on 2026-10-29 (iPhone + Android, throwaway group,
+live both ways). **Next:** Expo Go access for friends (below, needs your approval), then A3.
 
 ## Goal
 
@@ -127,9 +128,10 @@ Proposed (all free: the Expo Free plan has unlimited members):
 1. You create a free Expo organization and transfer the SplitSnap project to it on expo.dev. The
    project ID stays the same. If the fixed link or the GitHub publish needs a change after the
    move, I fix it.
-2. Each friend creates a free Expo account. You invite them to the organization with the
-   lowest role that still opens projects in Expo Go. We check which role that is with the first
-   friend.
+2. Each friend creates a free Expo account. You invite them to the organization as **Viewer**,
+   which Expo describes as able to "only view your projects through Expo Go", with no changes
+   ([Expo account types](https://docs.expo.dev/accounts/account-types/)). A personal account
+   can't have members, which is why a friend's own account is refused today.
 3. Each friend signs in to Expo Go once, then opens the fixed link.
 
 Not chosen:
