@@ -125,10 +125,9 @@ signing in with your Expo account.
 
 Proposed (all free: the Expo Free plan has unlimited members):
 
-1. You create a free Expo organization and transfer the SplitSnap project to it on expo.dev. The
-   project ID stays the same. If the fixed link or the GitHub publish needs a change after the
-   move, I fix it.
-2. Each friend creates a free Expo account. You invite them to the organization as **Viewer**,
+1. Nothing to move: SplitSnap already belongs to the organization **shinozaki1595's team**
+   (scope `@shinozaki1595s-team/splitsnap`), which Expo created at sign-up.
+2. Each friend creates a free Expo account. You invite them to that organization as **Viewer**,
    which Expo describes as able to "only view your projects through Expo Go", with no changes
    ([Expo account types](https://docs.expo.dev/accounts/account-types/)). A personal account
    can't have members, which is why a friend's own account is refused today.
