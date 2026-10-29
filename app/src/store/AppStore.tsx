@@ -10,6 +10,7 @@ import { appReducer, buildExpense, validatePaymentInput } from './reducer';
 import type { AppAction } from './reducer';
 import type { ImportPlan } from '../lib/splitwiseImport';
 import type { LocalBatch } from '../sync/types';
+import { loadSyncState, sharedGroupIdsNow } from '../sync/syncStorage';
 import { canDeleteGroup, canRemoveFriend, canRemoveGroupMember } from './selectors';
 import { createDemoState, createEmptyState } from './seed';
 import { loadState, saveState } from './persistence';
@@ -61,6 +62,8 @@ export interface StoreInternals {
   getState(): AppState;
   /** Returns the unsubscribe function. */
   subscribe(listener: StoreListener): () => void;
+  /** Saves the current state now instead of after the debounce; rejects when the write fails. */
+  flushSave(): Promise<void>;
 }
 
 const SAVE_DELAY_MS = 300;
@@ -89,6 +92,8 @@ export function AppStoreProvider(props: { children: React.ReactNode }): React.JS
   const stateRef = React.useRef(state);
   const readyRef = React.useRef(false);
   const savedRef = React.useRef<AppState | null>(null);
+  // The write of savedRef.current (it may still be on its way).
+  const savingRef = React.useRef<Promise<void>>(Promise.resolve());
   // Replaced, never mutated, so unsubscribing inside a listener can't disturb the loop below.
   const listenersRef = React.useRef<StoreListener[]>([]);
 
@@ -110,47 +115,64 @@ export function AppStoreProvider(props: { children: React.ReactNode }): React.JS
 
   const processDueRecurring = React.useCallback((): void => {
     try {
-      dispatch({ type: 'recurring/process', today: todayISO(), at: nowISO(), idBase: newId('rec') });
+      dispatch({ type: 'recurring/process', today: todayISO(), at: nowISO(), idBase: newId('rec'), sharedGroupIds: sharedGroupIdsNow() });
     } catch {
       // A broken recurrence must never block the app; the copies are retried on next load.
     }
   }, [dispatch]);
 
-  // Load once: saved state, else demo data; then create any recurring copies that are due.
+  // Load once: saved state, else demo data. The sync state is loaded first, so the recurring
+  // check below knows which groups are shared on this phone.
   React.useEffect(() => {
     let cancelled = false;
-    loadState()
-      .catch(() => null)
-      .then((saved) => {
+    Promise.all([loadState().catch(() => null), loadSyncState()])
+      .then(([saved]) => {
         if (cancelled) return;
         dispatch({ type: 'state/replace', state: saved || demoOrEmpty(todayISO()) });
-        processDueRecurring();
         readyRef.current = true;
         setReady(true);
       });
     return () => {
       cancelled = true;
     };
-  }, [dispatch, processDueRecurring]);
+  }, [dispatch]);
+
+  // Recurring copies that fell due while the app was closed, once loaded. Not inside the load
+  // above: SyncProvider (a child, so its effects run first in this commit) starts the sync engine
+  // on `ready`, and the engine only sends what changed after it took its starting state.
+  React.useEffect(() => {
+    if (ready) processDueRecurring();
+  }, [ready, processDueRecurring]);
+
+  /** Writes `s` now; the debounced save, the unmount flush and flushSave all go through here. */
+  const save = React.useCallback((s: AppState): Promise<void> => {
+    savedRef.current = s;
+    const write = saveState(s);
+    savingRef.current = write;
+    // A failed write leaves the state unsaved, so the next save or flushSave tries again.
+    write.catch(() => {
+      if (savingRef.current === write) savedRef.current = null;
+    });
+    return write;
+  }, []);
 
   // Debounced save: every change restarts the 300 ms timer.
   React.useEffect(() => {
     if (!ready) return undefined;
     const timer = setTimeout(() => {
-      savedRef.current = state;
-      saveState(state).catch(() => undefined);
+      if (savedRef.current !== state) save(state).catch(() => undefined);
     }, SAVE_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [state, ready]);
+  }, [state, ready, save]);
 
   // Flush a pending save if the provider unmounts inside the debounce window.
   React.useEffect(
     () => () => {
       if (readyRef.current && savedRef.current !== stateRef.current) {
-        saveState(stateRef.current).catch(() => undefined);
+        save(stateRef.current).catch(() => undefined);
       }
     },
-    [],
+    [save],
   );
 
   const actions = React.useMemo<StoreActions>(() => {
@@ -289,8 +311,13 @@ export function AppStoreProvider(props: { children: React.ReactNode }): React.JS
           listenersRef.current = listenersRef.current.filter((l) => l !== listener);
         };
       },
+      flushSave() {
+        if (!readyRef.current) return Promise.resolve();
+        // Already written, or on its way: wait for that write instead of starting another.
+        return savedRef.current === stateRef.current ? savingRef.current : save(stateRef.current);
+      },
     }),
-    [],
+    [save],
   );
 
   return (

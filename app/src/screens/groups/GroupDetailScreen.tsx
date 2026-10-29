@@ -16,7 +16,7 @@ import { todayISO } from '../../lib/dates';
 import { useSync } from '../../sync/SyncProvider';
 import { colors, spacing, themed } from '../../theme';
 import { Banner, Chip, EmptyState, Fab, Icon, IconButton, Screen, shareCsv, showAlert } from '../../ui';
-import { sharedSummary } from '../sharing/sharingLogic';
+import { hasLeft, sharedSummary } from '../sharing/sharingLogic';
 import { GroupHeader } from './components/GroupHeader';
 import type { GroupAction } from './components/GroupHeader';
 import { MissingGroup } from './components/MissingGroup';
@@ -94,8 +94,12 @@ export default function GroupDetailScreen({ navigation, route }: Props) {
 
   // Sharing controls only exist when this build has a shared-groups server.
   const sharing = sync.status !== 'off';
-  const shared = sharing && !!sync.shared(groupId);
+  const sharedInfo = sharing ? sync.shared(groupId) : null;
+  const shared = !!sharedInfo;
   const onSplitSnap = shared ? group.memberIds.filter((id) => sync.isOnSplitSnap(groupId, id)).length : 0;
+  // Members who left stay in the group (old expenses name them) but count as neither joined nor invited.
+  const leftCount = group.memberIds.filter((id) => hasLeft(sharedInfo, id)).length;
+  const summary = sharedSummary(onSplitSnap, group.memberIds.length, leftCount);
 
   const headerActions: GroupAction[] = [
     { key: 'settle', icon: 'cash-outline', label: 'Settle up', primary: true, onPress: () => navigation.navigate('SettleUp', { groupId }) },
@@ -127,11 +131,11 @@ export default function GroupDetailScreen({ navigation, route }: Props) {
       {shared ? (
         <Chip
           small
-          label={sharedSummary(onSplitSnap, group.memberIds.length)}
+          label={summary}
           left={<Icon name="cloud-done-outline" size={16} color={colors.primaryDark} style={styles.chipIcon} />}
           right={<Icon name="chevron-forward" size={14} color={colors.textFaint} />}
           onPress={openShare}
-          accessibilityLabel={`${sharedSummary(onSplitSnap, group.memberIds.length)}. Show the join code and members`}
+          accessibilityLabel={`${summary}. Show the join code and members`}
           style={styles.sharedChip}
           testID="group-shared"
         />

@@ -189,13 +189,17 @@ function isFiniteNumber(v: unknown): v is number {
   return typeof v === 'number' && Number.isFinite(v);
 }
 
+/**
+ * Ids become keys of the app's records, so names every object inherits ('__proto__',
+ * 'constructor', 'toString', …) are refused: a lookup by one would find the inherited value.
+ */
 function isId(v: unknown): v is ID {
-  return typeof v === 'string' && v.length > 0 && v.length <= 64;
+  return typeof v === 'string' && v.length > 0 && v.length <= 64 && !(v in {});
 }
 
 /** Phones never send ME_ID (each writes its own member id instead), so a raw 'me' is forged. */
 function isPersonId(v: unknown): v is ID {
-  return isId(v) && v !== ME_ID && v !== '__proto__';
+  return isId(v) && v !== ME_ID;
 }
 
 function isOneOf<T extends string>(v: unknown, list: readonly T[]): v is T {
@@ -267,6 +271,13 @@ function listOf(v: unknown, reason: string): unknown[] {
 function optionalText(v: unknown, reason: string): string | undefined {
   if (v === undefined || v === null) return undefined;
   need(typeof v === 'string', reason);
+  return v;
+}
+
+/** An optional id field (absent or empty = absent); anything but a valid id fails the row. */
+function optionalId(v: unknown, reason: string): ID | undefined {
+  if (v === undefined || v === null || v === '') return undefined;
+  need(isId(v), reason);
   return v;
 }
 
@@ -399,7 +410,7 @@ function readExpense(row: DataRow, myMemberId: ID): Expense {
   need(isDate(d.date), 'bad date');
   need(isPersonId(d.createdBy), 'bad createdBy');
   need(isTimestamp(d.createdAt) && isTimestamp(d.updatedAt), 'bad timestamps');
-  const recurringParentId = optionalText(d.recurringParentId, 'bad recurringParentId');
+  const recurringParentId = optionalId(d.recurringParentId, 'bad recurringParentId');
   const server: Expense = compact({
     id: row.id,
     groupId: row.group_id,
@@ -413,7 +424,7 @@ function readExpense(row: DataRow, myMemberId: ID): Expense {
     split: readSplit(d.split),
     owed: [],
     recurrence: readRecurrence(d.recurrence),
-    recurringParentId: recurringParentId || undefined,
+    recurringParentId,
     comments: [],
     createdBy: d.createdBy,
     createdAt: d.createdAt,
@@ -481,8 +492,8 @@ function readActivity(row: ActivityRow, myMemberId: ID): Activity {
     at: d.at,
     actorId: d.actorId,
     groupId: row.group_id,
-    expenseId: optionalText(d.expenseId, 'bad expense id') || undefined,
-    paymentId: optionalText(d.paymentId, 'bad payment id') || undefined,
+    expenseId: optionalId(d.expenseId, 'bad expense id'),
+    paymentId: optionalId(d.paymentId, 'bad payment id'),
     personId: d.personId ?? undefined,
     summary: d.summary,
     amount: d.amount ?? undefined,

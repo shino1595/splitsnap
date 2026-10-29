@@ -5,6 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import RootNavigator from './src/navigation/RootNavigator';
 import { AppStoreProvider, useAppState, useStoreReady } from './src/store/AppStore';
 import { DraftProvider } from './src/store/draft';
+import { SyncProvider } from './src/sync/SyncProvider';
 import { colors, setActiveTheme, themed, ThemeName } from './src/theme';
 import { AppText, DialogHost } from './src/ui';
 
@@ -82,9 +83,11 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <AppStoreProvider>
-        <DraftProvider>
-          <AppContent />
-        </DraftProvider>
+        <SyncProvider>
+          <DraftProvider>
+            <AppContent />
+          </DraftProvider>
+        </SyncProvider>
       </AppStoreProvider>
       <DialogHost />
     </SafeAreaProvider>

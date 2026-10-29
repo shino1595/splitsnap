@@ -1,7 +1,7 @@
 // Pure helpers for the shared-group screens: join codes, the invite message, member badges,
 // display names, the sync status line and friendly error texts (docs/SYNC_DESIGN.md §7).
 import type { ID } from '../../types';
-import type { GroupPreview, SyncStatus } from '../../sync/types';
+import type { GroupPreview, SharedGroupInfo, SyncStatus } from '../../sync/types';
 
 /** Opens SplitSnap in Expo Go (EAS Update, channel main). Every invite carries it. */
 export const APP_LINK =
@@ -55,18 +55,39 @@ export function inviteMessage(groupName: string, code: string): string {
     '',
     `1. Open SplitSnap in Expo Go: ${APP_LINK}`,
     `2. Go to Groups, tap "Join a group" and enter the code ${formatJoinCode(code)}`,
-    '3. Tap "That\'s me" next to your name.',
+    '3. Tap "That\'s me" next to your name, or join as a new member if your name isn\'t there.',
   ].join('\n');
 }
 
-/** Member badge: a real SplitSnap user in the shared group, or a placeholder nobody claimed yet. */
-export function memberBadge(onSplitSnap: boolean): string {
-  return onSplitSnap ? 'On SplitSnap' : 'Invited';
+/**
+ * A member of a shared group: a real SplitSnap user ('on'), a placeholder nobody claimed yet
+ * ('invited'), or someone who left ('left': their row stays, because old expenses name them).
+ */
+export type MemberStatus = 'on' | 'invited' | 'left';
+
+/** True when this person left the shared group (`info` is useSync().shared(groupId)). */
+export function hasLeft(info: SharedGroupInfo | null, personId: ID): boolean {
+  if (!info || !Object.prototype.hasOwnProperty.call(info.members, personId)) return false;
+  return info.members[personId].leftAt !== null;
 }
 
-/** 'Shared · 2 of 4 on SplitSnap' for the group screen; just 'Shared' while you are alone in it. */
-export function sharedSummary(onSplitSnap: number, members: number): string {
-  return members <= 1 ? 'Shared' : `Shared · ${onSplitSnap} of ${members} on SplitSnap`;
+/** `onSplitSnap` is useSync().isOnSplitSnap(groupId, personId), which is false for people who left. */
+export function memberStatus(info: SharedGroupInfo | null, personId: ID, onSplitSnap: boolean): MemberStatus {
+  if (onSplitSnap) return 'on';
+  return hasLeft(info, personId) ? 'left' : 'invited';
+}
+
+export function memberBadge(status: MemberStatus): string {
+  return status === 'on' ? 'On SplitSnap' : status === 'left' ? 'Left' : 'Invited';
+}
+
+/**
+ * 'Shared · 2 of 4 on SplitSnap' for the group screen; members who left count in neither
+ * number. Just 'Shared' while you are alone in it.
+ */
+export function sharedSummary(onSplitSnap: number, members: number, left = 0): string {
+  const current = members - left;
+  return current <= 1 ? 'Shared' : `Shared · ${onSplitSnap} of ${current} on SplitSnap`;
 }
 
 /** One line for an editor whose group picker is locked (SYNC_DESIGN §4.5). */
@@ -146,8 +167,13 @@ export const WRONG_CODE_TEXT =
   "That code doesn't match a group. Check it, or ask for a new invite: the code may have been changed or switched off.";
 export const CLAIMED_TEXT = 'Someone has already claimed that name. Pick another one, or join as a new member.';
 export const DENIED_TEXT = "You can't do that in this group any more. You may have left it, or it was deleted.";
+export const RESHARED_TEXT =
+  "This group was shared before, so it can't be shared again. Ask a member for the code and join it instead.";
 
 const ERROR_KINDS = ['network', 'denied', 'invalid', 'not-found'];
+
+/** Postgres wording (constraint names, SQL, PostgREST's schema cache) that means nothing to people. */
+const SERVER_INTERNALS = /duplicate key|violates|constraint|syntax|schema cache|relation|column/i;
 
 /** SyncError-like fields of anything thrown (the engine throws SyncError; others throw Error). */
 function errorParts(error: unknown): { kind: string | null; message: string } {
@@ -163,8 +189,10 @@ export function syncErrorText(error: unknown, fallback: string): string {
   if (/already claimed/i.test(message)) return CLAIMED_TEXT;
   if (kind === 'network' || /network|failed to fetch|offline|timed? ?out/i.test(message)) return OFFLINE_TEXT;
   if (kind === 'not-found' || /doesn.?t match a group/i.test(message)) return WRONG_CODE_TEXT;
+  // share_group on ids the server already has: a group you left, or the demo group shared from another phone.
+  if (/duplicate key/i.test(message)) return RESHARED_TEXT;
   if (kind === 'denied') return DENIED_TEXT;
-  // 'invalid' carries the server's own sentence (e.g. "You must be one of the members").
-  if (kind === 'invalid' && message && message.length <= 140) return message;
+  // 'invalid' carries the server's own sentence (e.g. "You must be one of the members"), but not Postgres internals.
+  if (kind === 'invalid' && message && message.length <= 140 && !SERVER_INTERNALS.test(message)) return message;
   return fallback;
 }

@@ -39,6 +39,7 @@ const OVERLAP_MS = 10000;
 const RETRY_MIN_MS = 1000;
 const RETRY_MAX_MS = 30000;
 const NO_CONNECTION = 'No connection to the server.';
+const SIGNED_OUT = 'Signed out — changes will be sent when you are signed in again';
 
 let channelCount = 0;
 
@@ -58,7 +59,10 @@ export function toSyncError(error: { message?: string; code?: string } | null, s
   if (status >= 500 || status === 408 || status === 429) return new SyncError('network', message);
   // PGRST3xx = expired or unreadable token: not a permission answer, the session refreshes.
   if (code.indexOf('PGRST3') === 0) return new SyncError('network', message);
-  if (code === '42501' || code === '28000' || status === 401 || status === 403) return new SyncError('denied', message);
+  // 28000 ('Sign in first') and 401 (no session, so the anon role; PostgREST answers 42501 with
+  // 401 then) say nothing about these rows: 'denied' would drop changes that only wait for a sign-in.
+  if (code === '28000' || status === 401) return new SyncError('network', message);
+  if (code === '42501' || status === 403) return new SyncError('denied', message);
   if (code === 'P0002') return new SyncError('not-found', message);
   return new SyncError('invalid', message);
 }
@@ -90,6 +94,22 @@ async function userId(client: Client): Promise<string> {
     // ensureSignedIn hides the HTTP status; a failed anonymous sign-in is always safe to retry.
     throw new SyncError('network', messageOf(error));
   }
+}
+
+/**
+ * push and pull never sign in themselves. Without a session supabase-js sends the anon key,
+ * which the server refuses like a stranger, and the engine would drop the changes as "not in
+ * this group any more"; 'network' keeps them until a share or join signs in again.
+ */
+async function requireSession(client: Client): Promise<void> {
+  let signedIn = false;
+  try {
+    const { data } = await client.auth.getSession();
+    signedIn = !!data.session;
+  } catch (error) {
+    throw new SyncError('network', messageOf(error));
+  }
+  if (!signedIn) throw new SyncError('network', SIGNED_OUT);
 }
 
 function text(value: unknown, what: string): string {
@@ -171,6 +191,7 @@ export function createSupabaseBackend(): SyncBackend {
 
     async push(payload) {
       const client = await connect();
+      await requireSession(client);
       const written = ((await run(client.rpc('push_changes', { p: payload }))) || {}) as Record<string, unknown>;
       const count = (kind: keyof PushPayload) => (typeof written[kind] === 'number' ? (written[kind] as number) : 0);
       return {
@@ -185,6 +206,7 @@ export function createSupabaseBackend(): SyncBackend {
 
     async pull(since) {
       const client = await connect();
+      await requireSession(client);
       const perGroup = await Promise.all(
         Object.keys(since).map((groupId) => {
           const after = overlapStart(since[groupId]);

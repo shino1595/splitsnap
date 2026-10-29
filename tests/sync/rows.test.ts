@@ -684,15 +684,72 @@ describe('batchToLocal: groups that are not shared, malformed rows and cursors',
     const rows: Partial<RemoteBatch> = {
       groups: [groupRow({ id: OTHER })],
       members: [memberRow(BHAVNA, 'Bhavna', { group_id: OTHER })],
-      expenses: [flat, { ...flat, id: 'exp_proto', group_id: '__proto__' }, { ...flat, id: 'exp_ctor', group_id: 'constructor' }],
+      expenses: [flat],
     };
     const { local, groupInfo, skipped } = batchToLocal(batchOf(rows), syncWith(AARAV_INFO), aaravsPhone());
     expect(local.groups).toEqual([]);
     expect(local.people).toEqual([]);
     expect(local.expenses).toEqual([]);
     expect(Object.keys(groupInfo)).toEqual([]);
-    expect(skipped.map((s) => s.id)).toEqual([BHAVNA, OTHER, 'exp_flat', 'exp_proto', 'exp_ctor']);
+    expect(skipped.map((s) => s.id)).toEqual([BHAVNA, OTHER, 'exp_flat']);
     expect(skipped.every((s) => s.reason === 'not a shared group on this phone')).toBe(true);
+  });
+
+  it("refuses ids every object inherits ('constructor', 'toString', '__proto__'), wherever they appear", () => {
+    const expenseRow = (id: string, change: Record<string, unknown> = {}): DataRow => {
+      const row = dataRow(pushExpense(expense(id), AARAV_INFO));
+      return { ...row, data: { ...(row.data as Record<string, unknown>), ...change } };
+    };
+    const good = expenseRow('exp_good');
+    const comment = (id: string, expenseId: string): CommentRow => ({
+      id,
+      group_id: GOA,
+      expense_id: expenseId,
+      data: { id, authorId: BHAVNA, text: 'hi', createdAt: T0 },
+      created_at: LATER,
+      created_by: null,
+      deleted_at: null,
+    });
+    const activity = (id: string, change: Record<string, unknown>): ActivityRow => ({
+      id,
+      group_id: GOA,
+      data: { id, type: 'expense_added', at: T0, actorId: BHAVNA, summary: 'Bhavna added "Tea".', groupId: GOA, ...change },
+      created_at: LATER,
+      created_by: null,
+    });
+    const batch = batchOf({
+      members: [memberRow('toString', 'Forged'), memberRow(CHIRAG, 'Chirag', { group_id: 'constructor' })],
+      expenses: [
+        good,
+        expenseRow('constructor'),
+        { ...expenseRow('exp_proto'), group_id: '__proto__' },
+        expenseRow('exp_parent', { recurringParentId: 'constructor' }),
+        expenseRow('exp_split', { split: { method: 'equal', participantIds: [AARAV, 'hasOwnProperty'] } }),
+        expenseRow('exp_amounts', { split: { method: 'exact', amounts: { [AARAV]: 45000, valueOf: 45000 } } }),
+      ],
+      payments: [{ ...dataRow(pushPayment(payment('pay_1'), AARAV_INFO)), data: { ...pushPayment(payment('pay_1'), AARAV_INFO).data, toId: 'toString' } }],
+      comments: [comment('cmt_ok', 'exp_good'), comment('cmt_ctor', 'constructor')],
+      activity: [activity('act_exp', { expenseId: 'toString' }), activity('act_pay', { paymentId: '__proto__' })],
+    });
+    const { local, skipped } = batchToLocal(batch, syncWith(AARAV_INFO), aaravsPhone());
+    expect(local.expenses.map((e) => e.id)).toEqual(['exp_good']);
+    expect(local.comments.map((c) => c.comment.id)).toEqual(['cmt_ok']);
+    expect(local.people).toEqual([]);
+    expect(local.payments).toEqual([]);
+    expect(local.activity).toEqual([]);
+    expect(skipped.map((s) => [s.id, s.reason])).toEqual([
+      ['toString', 'malformed row'],
+      [CHIRAG, 'malformed row'],
+      ['constructor', 'malformed row'],
+      ['exp_proto', 'malformed row'],
+      ['exp_parent', 'bad recurringParentId'],
+      ['exp_split', 'bad person id in participants'],
+      ['exp_amounts', 'bad entry in amounts'],
+      ['pay_1', 'bad payer or payee'],
+      ['cmt_ctor', 'bad expense id'],
+      ['act_exp', 'bad expense id'],
+      ['act_pay', 'bad payment id'],
+    ]);
   });
 
   it('skips malformed rows without throwing', () => {

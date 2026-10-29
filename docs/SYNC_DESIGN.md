@@ -69,7 +69,8 @@ signed-in user id, display name, per shared group `{ myMemberId, joinCode, membe
    updated, comments / activity insert-only). Plain PostgREST upserts are not used: they would
    also SET `group_id`, which the server deliberately does not allow (an expense can't move
    group). Network errors: keep and retry with
-   backoff. Permission errors (e.g. you left the group): drop the key and show a notice.
+   backoff. Permission errors (e.g. you left the group): drop the key and show a notice. Being
+   signed out (no session, 28000, HTTP 401) counts as a network error, never as a refusal.
 4. Changes that came **from** the server are applied with `sync/applyRemote`, which the differ
    ignores, so they never echo back.
 5. **An expense or payment can't change group once the group is shared:** ids are global on the
@@ -82,7 +83,9 @@ signed-in user id, display name, per shared group `{ myMemberId, joinCode, membe
 - **Pull:** on start, on resume and after reconnecting, per shared group: rows with
   `updated_at` (`created_at` for comments / activity) after the group's cursor minus a
   **10-second overlap** (server timestamps are transaction start times, so a row can commit later
-  than a newer-looking one). Applying is idempotent, so the overlap only repeats work.
+  than a newer-looking one). Applying is idempotent, so the overlap only repeats work. A new
+  cursor is saved only after the app state holding its rows (AppStore saves with a delay), and a
+  shared group missing from the app state at start is pulled again from the beginning.
 - **Live:** one Realtime channel with Postgres Changes on the six tables. Row security means each
   phone only receives rows of its groups. Each event goes through the same apply path.
 - **Apply** (`sync/applyRemote`, pure, in the reducer): rewrite ids (§2), create missing people,

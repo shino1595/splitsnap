@@ -31,8 +31,9 @@ import { ListCard } from './components/ListCard';
 import { MemberPicker } from './components/MemberPicker';
 import { MissingGroup } from './components/MissingGroup';
 import { GROUP_TYPES, groupTypeInfo } from './components/groupMeta';
-import { cleanName, deletionNote, findPersonByName, lockedMemberDetail, memberNets } from './groupLogic';
-import { memberBadge, syncErrorText } from '../sharing/sharingLogic';
+import { changedGroupFields, cleanName, deletionNote, findPersonByName, lockedMemberDetail, memberNets } from './groupLogic';
+import type { GroupFormFields } from './groupLogic';
+import { memberBadge, memberStatus, syncErrorText } from '../sharing/sharingLogic';
 
 type Props = RootScreenProps<'GroupEdit'>;
 
@@ -99,9 +100,19 @@ export default function GroupEditScreen({ navigation, route }: Props) {
     navigation.setOptions({ title: isEdit ? 'Edit group' : 'New group' });
   }, [navigation, isEdit]);
 
-  // What the form started with, to tell whether there is anything to discard.
+  // What the form started with, to tell whether there is anything to discard, and which fields
+  // the user changed (only those are saved).
   const [initialForm] = React.useState(() => formKey(name, type, emoji, memberIds, currency, simplify, archived));
+  const [startFields] = React.useState<GroupFormFields>(() => ({ name, type, emoji, currency, simplify, archived }));
   const dirty = formKey(name, type, emoji, memberIds, currency, simplify, archived) !== initialForm;
+
+  // Ticked members. In a shared group nobody is removed here, so people who joined from their own
+  // phone since the form opened are ticked too (without making the form count as changed).
+  const selectedIds = React.useMemo(() => {
+    if (!shared || !existing) return memberIds;
+    const joined = existing.memberIds.filter((id) => id !== ME_ID && memberIds.indexOf(id) < 0);
+    return joined.length > 0 ? [...memberIds, ...joined] : memberIds;
+  }, [shared, existing, memberIds]);
 
   // Ask before throwing away changes (back button, swipe down, hardware back).
   usePreventRemove(dirty, ({ data }) => {
@@ -142,10 +153,11 @@ export default function GroupEditScreen({ navigation, route }: Props) {
     if (!existing) return { reasons, details };
     if (shared) {
       // Nobody can be removed; the line under each name is their badge instead.
+      const info = sync.shared(existing.id);
       for (const id of existing.memberIds) {
         if (id === ME_ID) continue;
         reasons[id] = SHARED_REMOVE_REASON;
-        details[id] = memberBadge(sync.isOnSplitSnap(existing.id, id));
+        details[id] = memberBadge(memberStatus(info, id, sync.isOnSplitSnap(existing.id, id)));
       }
       return { reasons, details };
     }
@@ -186,7 +198,7 @@ export default function GroupEditScreen({ navigation, route }: Props) {
   };
 
   const toggleMember = (id: ID) => {
-    if (memberIds.indexOf(id) < 0) {
+    if (selectedIds.indexOf(id) < 0) {
       setMemberIds([...memberIds, id]);
       return;
     }
@@ -203,7 +215,7 @@ export default function GroupEditScreen({ navigation, route }: Props) {
     const newName = cleanName(typed);
     const match = findPersonByName(candidates, newName);
     if (match) {
-      const already = memberIds.indexOf(match.id) >= 0;
+      const already = selectedIds.indexOf(match.id) >= 0;
       if (!already) setMemberIds([...memberIds, match.id]);
       return already ? `${match.name} is already in this group.` : `${match.name} is already your friend, so we ticked them.`;
     }
@@ -247,23 +259,21 @@ export default function GroupEditScreen({ navigation, route }: Props) {
     }
 
     const failures: string[] = [];
-    for (const id of existing.memberIds) {
-      if (id === ME_ID || realIds.indexOf(id) >= 0) continue;
-      const result = actions.removeGroupMember(existing.id, id);
-      if (!result.ok) failures.push(result.reason ?? `${personName(state, id)} could not be removed.`);
+    // Nobody leaves a shared group from here (and `existing` may have members who joined after
+    // the form opened), so only an unshared group loses the members that were unticked.
+    if (!shared) {
+      for (const id of existing.memberIds) {
+        if (id === ME_ID || realIds.indexOf(id) >= 0) continue;
+        const result = actions.removeGroupMember(existing.id, id);
+        if (!result.ok) failures.push(result.reason ?? `${personName(state, id)} could not be removed.`);
+      }
     }
     for (const id of realIds) {
       if (existing.memberIds.indexOf(id) < 0) actions.addGroupMember(existing.id, id);
     }
-    actions.updateGroup(existing.id, {
-      name: trimmed,
-      type,
-      emoji,
-      defaultCurrency: currency,
-      simplifyDebts: simplify,
-      // undefined (not false) so an unchanged, never-archived group stays identical.
-      archived: archived ? true : undefined,
-    });
+    // Only what was changed here, so another member's rename meanwhile isn't undone.
+    const patch = changedGroupFields(startFields, { name, type, emoji, currency, simplify, archived });
+    if (Object.keys(patch).length > 0) actions.updateGroup(existing.id, patch);
     if (failures.length > 0) showAlert('Some members were kept', failures.join('\n\n'));
     navigation.goBack();
   };
@@ -306,7 +316,8 @@ export default function GroupEditScreen({ navigation, route }: Props) {
     busyRef.current = true;
     const ok = await confirmAsync(
       `Leave "${existing.name}"?`,
-      "You stop getting the others' changes and they stop getting yours. Your copy stays on this phone as an ordinary group, and expenses that name you stay in the group for everyone else.",
+      "You stop getting the others' changes and they stop getting yours. Expenses that name you stay in the group for everyone else.\n\n" +
+        "After leaving, the group stays here as a copy only on this phone. To join it again later, you'd have to delete this copy first, which needs everyone settled up.",
       { confirmText: 'Leave group', destructive: true },
     );
     if (!ok) {
@@ -367,12 +378,12 @@ export default function GroupEditScreen({ navigation, route }: Props) {
         <EmojiGrid value={emoji} onChange={pickEmoji} />
       </Card>
 
-      <SectionHeader title={`Members · ${memberIds.length + 1}`} />
+      <SectionHeader title={`Members · ${selectedIds.length + 1}`} />
       <ListCard>
         <MemberPicker
           me={state.people[ME_ID]}
           people={candidates}
-          selected={memberIds}
+          selected={selectedIds}
           onToggle={toggleMember}
           locked={locks.details}
           pendingIds={pending.map((p) => p.id)}

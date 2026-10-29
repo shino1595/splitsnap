@@ -184,6 +184,29 @@ describe('sync/applyRemote', () => {
     expect(withNew.expenses.e_new.comments).toEqual([fresh]);
   });
 
+  it('treats ids such as "constructor" and "toString" as plain ids, never as inherited values', () => {
+    const s = withHistory();
+    const odd = serverCopy(s.expenses.e1, { id: 'constructor' });
+    const note = comment('c_odd', A, AT);
+    const oddPayment: Payment = { ...s.payments.pay1, id: 'toString' };
+    const next = apply(s, {
+      expenses: [odd],
+      payments: [oddPayment],
+      comments: [
+        { expenseId: 'constructor', comment: note },
+        { expenseId: 'hasOwnProperty', comment: comment('c_lost', A, AT) },
+      ],
+    });
+    const own = (record: object, id: string): boolean => Object.prototype.hasOwnProperty.call(record, id);
+    expect(own(next.expenses, 'constructor')).toBe(true);
+    expect(next.expenses['constructor']).toEqual({ ...odd, comments: [note] });
+    expect(own(next.expenses, 'hasOwnProperty')).toBe(false);
+    expect(own(next.payments, 'toString')).toBe(true);
+    expect(next.payments['toString']).toEqual(oddPayment);
+    expect(next.expenses.e1).toBe(s.expenses.e1);
+    expect(apply(next, { expenses: [odd], comments: [{ expenseId: 'constructor', comment: note }] })).toBe(next);
+  });
+
   it('replaces payments by id', () => {
     const s = withHistory();
     const p2: Payment = { ...s.payments.pay1, id: 'pay2', fromId: ME_ID, toId: B, amount: 50000 };

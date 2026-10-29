@@ -86,8 +86,9 @@ export type AppAction =
   /** Adds a whole Splitwise export at once (friends, group, expenses, payments) with one Activity entry. */
   | ({ type: 'import/apply'; plan: ImportPlan } & Stamp)
   | ({ type: 'settings/update'; patch: Partial<Settings> } & Stamp)
-  /** Materialise due copies of recurring expenses; new ids are `${idBase}_<n>` / `${idBase}_a<n>`. */
-  | { type: 'recurring/process'; today: ISODate; at: ISODateTime; idBase: string }
+  /** Materialise due copies of recurring expenses; new ids are `${idBase}_<n>` / `${idBase}_a<n>`.
+   *  sharedGroupIds: groups shared on this phone, where only the expense's creator makes copies. */
+  | { type: 'recurring/process'; today: ISODate; at: ISODateTime; idBase: string; sharedGroupIds?: ID[] }
   /** Changes from a shared group's server (ids already local). Logs no activity of its own. */
   | { type: 'sync/applyRemote'; batch: LocalBatch; at: ISODateTime };
 
@@ -312,11 +313,14 @@ export function buildPayment(id: ID, input: PaymentInput, at: ISODateTime): Paym
 /**
  * Creates a copy of every live recurring expense for each due date up to `today`
  * (via dueDates), moves the parent's nextDate on and logs one activity per copy.
- * Returns the same state object when nothing is due.
+ * Returns the same state object when nothing is due. In a shared group only the creator's phone
+ * makes copies (the others receive them), or every phone would add its own.
  */
-export function processRecurring(state: AppState, today: ISODate, at: ISODateTime, idBase: string): AppState {
+export function processRecurring(state: AppState, today: ISODate, at: ISODateTime, idBase: string, sharedGroupIds?: ID[]): AppState {
+  const copiesHere = (e: Expense): boolean =>
+    !sharedGroupIds || e.groupId === null || sharedGroupIds.indexOf(e.groupId) < 0 || e.createdBy === ME_ID;
   const parents = Object.values(state.expenses)
-    .filter((e) => !e.deletedAt && e.recurrence && e.recurrence.nextDate <= today)
+    .filter((e) => !e.deletedAt && e.recurrence && e.recurrence.nextDate <= today && copiesHere(e))
     .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   if (parents.length === 0) return state;
 
@@ -359,11 +363,17 @@ export function processRecurring(state: AppState, today: ISODate, at: ISODateTim
 
 const newestFirst = (a: Activity, b: Activity): number => (a.at > b.at ? -1 : a.at < b.at ? 1 : 0);
 
+/** record[id] only when it is the record's own entry (never an inherited 'constructor' or 'toString'). */
+function own<T>(record: Record<ID, T>, id: ID): T | undefined {
+  return Object.prototype.hasOwnProperty.call(record, id) ? record[id] : undefined;
+}
+
 /**
  * Applies changes from a shared group's server (sync/applyRemote, docs/SYNC_DESIGN.md §5).
  * Server records replace local ones by id, except what only this phone has: comments the
  * server copy lacks and the bill photo. Logs nothing itself; the batch's own activity entries
  * are added, re-worded for this phone. Returns the same state object when nothing changes.
+ * Ids come from other phones, so every lookup by them is an own-property one.
  */
 export function applyRemoteBatch(state: AppState, batch: LocalBatch, at: ISODateTime): AppState {
   // New people are created; known ones only take the new name. You are never touched.
@@ -372,7 +382,7 @@ export function applyRemoteBatch(state: AppState, batch: LocalBatch, at: ISODate
   for (const p of batch.people) {
     if (p.id === ME_ID) continue;
     const name = p.name.trim();
-    const existing = people[p.id];
+    const existing = own(people, p.id);
     if (existing) {
       if (!name || name === existing.name) continue;
       people[p.id] = { ...existing, name };
@@ -387,9 +397,10 @@ export function applyRemoteBatch(state: AppState, batch: LocalBatch, at: ISODate
   const groups = { ...state.groups };
   const changedGroupIds: ID[] = [];
   for (const g of batch.groups) {
-    const memberIds = g.memberIds.filter((id, i) => g.memberIds.indexOf(id) === i && !!people[id]);
+    const memberIds = g.memberIds.filter((id, i) => g.memberIds.indexOf(id) === i && !!own(people, id));
     const group: Group = compact({ ...g, memberIds });
-    if (groups[g.id] && sameValue(groups[g.id], group)) continue;
+    const before = own(groups, g.id);
+    if (before && sameValue(before, group)) continue;
     groups[g.id] = group;
     changedGroupIds.push(g.id);
   }
@@ -398,7 +409,7 @@ export function applyRemoteBatch(state: AppState, batch: LocalBatch, at: ISODate
   const expenses = { ...state.expenses };
   let expensesChanged = false;
   for (const remote of batch.expenses) {
-    const local = expenses[remote.id];
+    const local = own(expenses, remote.id);
     const merged: Expense = compact({
       ...remote,
       comments: mergeComments(local ? local.comments : [], remote.comments || []),
@@ -410,7 +421,7 @@ export function applyRemoteBatch(state: AppState, batch: LocalBatch, at: ISODate
     expensesChanged = true;
   }
   for (const { expenseId, comment } of batch.comments) {
-    const e = expenses[expenseId];
+    const e = own(expenses, expenseId);
     if (!e) continue;
     const comments = mergeComments(e.comments, [comment]);
     if (comments === e.comments) continue;
@@ -421,7 +432,8 @@ export function applyRemoteBatch(state: AppState, batch: LocalBatch, at: ISODate
   const payments = { ...state.payments };
   let paymentsChanged = false;
   for (const remote of batch.payments) {
-    if (payments[remote.id] && sameValue(payments[remote.id], remote)) continue;
+    const local = own(payments, remote.id);
+    if (local && sameValue(local, remote)) continue;
     payments[remote.id] = compact(remote);
     paymentsChanged = true;
   }
@@ -430,7 +442,7 @@ export function applyRemoteBatch(state: AppState, batch: LocalBatch, at: ISODate
   const gone = batch.deletedGroupIds;
   if (gone.length > 0) {
     for (const id of gone) {
-      if (!groups[id]) continue;
+      if (!own(groups, id)) continue;
       delete groups[id];
       groupsChanged = true;
     }
@@ -458,7 +470,7 @@ export function applyRemoteBatch(state: AppState, batch: LocalBatch, at: ISODate
     };
   }
   for (const id of changedGroupIds) {
-    const group = next.groups[id];
+    const group = own(next.groups, id);
     if (group) next = withFriends(next, group.memberIds);
   }
 
@@ -756,7 +768,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     }
 
     case 'recurring/process':
-      return processRecurring(state, action.today, action.at, action.idBase);
+      return processRecurring(state, action.today, action.at, action.idBase, action.sharedGroupIds);
 
     case 'sync/applyRemote':
       return applyRemoteBatch(state, action.batch, action.at);

@@ -90,13 +90,13 @@ describe('fakeServer: sign-in and profiles', () => {
     expect(server.userId('chirag')).toBeNull();
   });
 
-  it('refuses every call before sign-in', async () => {
+  it("refuses every call before sign-in, as 'network' (it says nothing about the rows)", async () => {
     const server = new FakeServer();
     await shareGoa(server);
     const diya = server.backend('diya');
-    expect((await failure(diya.pull({ [GOA]: null }))).kind).toBe('denied');
+    expect((await failure(diya.pull({ [GOA]: null }))).kind).toBe('network');
     expect((await failure(diya.previewGroup('ABCDEFGH'))).message).toBe('Sign in first');
-    expect((await failure(diya.push(payload({})))).kind).toBe('denied');
+    expect((await failure(diya.push(payload({})))).kind).toBe('network');
   });
 
   it('creates and renames the profile, checking the trimmed length', async () => {

@@ -1,7 +1,21 @@
 // Pure helpers behind the group screens (no React, no react-native), unit-tested in
 // tests/screens/groupLogic.test.ts.
 import { ME_ID } from '../../types';
-import type { AppState, CurrencyAmounts, Debt, Expense, Group, ID, ISODate, Minor, Payment, PaymentMethod, Person } from '../../types';
+import type {
+  AppState,
+  CurrencyAmounts,
+  CurrencyCode,
+  Debt,
+  Expense,
+  Group,
+  GroupType,
+  ID,
+  ISODate,
+  Minor,
+  Payment,
+  PaymentMethod,
+  Person,
+} from '../../types';
 import type { GroupTotals, TimelineEntry } from '../../store/selectors';
 import { groupMembers, groupNets, listGroups, myGroupBalance, personName } from '../../store/selectors';
 import { expenseImpact } from '../../lib/balances';
@@ -187,6 +201,33 @@ export function cleanName(name: string): string {
 
 function normalizeName(name: string): string {
   return cleanName(name).toLowerCase();
+}
+
+/** The group settings the editor shows (members are saved separately). */
+export interface GroupFormFields {
+  name: string;
+  type: GroupType;
+  emoji: string;
+  currency: CurrencyCode;
+  simplify: boolean;
+  archived: boolean;
+}
+
+/**
+ * An updateGroup patch with only the fields changed since the editor opened. In a shared group
+ * the others may have changed the rest meanwhile, and sending the old values would undo that.
+ */
+export function changedGroupFields(start: GroupFormFields, now: GroupFormFields): Partial<Omit<Group, 'id' | 'createdAt' | 'memberIds'>> {
+  const patch: Partial<Omit<Group, 'id' | 'createdAt' | 'memberIds'>> = {};
+  const name = cleanName(now.name);
+  if (name !== cleanName(start.name)) patch.name = name;
+  if (now.type !== start.type) patch.type = now.type;
+  if (now.emoji !== start.emoji) patch.emoji = now.emoji;
+  if (now.currency !== start.currency) patch.defaultCurrency = now.currency;
+  if (now.simplify !== start.simplify) patch.simplifyDebts = now.simplify;
+  // undefined (not false) when unarchived, so a never-archived group stays identical.
+  if (now.archived !== start.archived) patch.archived = now.archived ? true : undefined;
+  return patch;
 }
 
 /** ' Its 2 expenses and 1 payment will be deleted too.' for the delete-group question ('' if none). */

@@ -1,5 +1,5 @@
 import { SyncError } from '../../app/src/sync/types';
-import type { GroupPreview } from '../../app/src/sync/types';
+import type { GroupPreview, SharedGroupInfo } from '../../app/src/sync/types';
 import {
   APP_LINK,
   CLAIMED_TEXT,
@@ -7,16 +7,19 @@ import {
   JOIN_CODE_ALPHABET,
   JOIN_CODE_LENGTH,
   OFFLINE_TEXT,
+  RESHARED_TEXT,
   WRONG_CODE_TEXT,
   cleanDisplayName,
   displayNameDraft,
   displayNameProblem,
   formatJoinCode,
+  hasLeft,
   inviteMessage,
   inviteTitle,
   joinChoices,
   joinCodeProblem,
   memberBadge,
+  memberStatus,
   normalizeJoinCode,
   sharedGroupLock,
   sharedSummary,
@@ -83,6 +86,7 @@ describe('invite message', () => {
     expect(text).toContain(APP_LINK);
     expect(text).toContain("That's me");
     expect(text.split('\n')).toHaveLength(5);
+    expect(text.split('\n')[4]).toBe('3. Tap "That\'s me" next to your name, or join as a new member if your name isn\'t there.');
   });
 
   it('uses the Expo Go link for runtime SDK 58 on the main channel', () => {
@@ -104,14 +108,43 @@ describe('invite message', () => {
 });
 
 describe('badges and summaries', () => {
+  const info: SharedGroupInfo = {
+    groupId: 'grp_goa',
+    myMemberId: 'u_aarav',
+    joinCode: 'K7M2QX9P',
+    joinEnabled: true,
+    members: {
+      u_aarav: { userId: 'user-a', leftAt: null },
+      per_bhavna: { userId: 'user-b', leftAt: null },
+      per_chirag: { userId: null, leftAt: null },
+      u_diya: { userId: 'user-d', leftAt: '2026-10-20T09:00:00.000Z' },
+    },
+    cursor: null,
+  };
+
   it('labels members', () => {
-    expect(memberBadge(true)).toBe('On SplitSnap');
-    expect(memberBadge(false)).toBe('Invited');
+    expect(memberBadge('on')).toBe('On SplitSnap');
+    expect(memberBadge('invited')).toBe('Invited');
+    expect(memberBadge('left')).toBe('Left');
+  });
+
+  it('tells members who left from placeholders nobody claimed yet', () => {
+    expect(memberStatus(info, 'per_bhavna', true)).toBe('on');
+    expect(memberStatus(info, 'per_chirag', false)).toBe('invited');
+    expect(memberStatus(info, 'u_diya', false)).toBe('left');
+    expect(memberStatus(info, 'per_unknown', false)).toBe('invited');
+    expect(memberStatus(null, 'u_diya', false)).toBe('invited');
+    expect(hasLeft(info, 'u_diya')).toBe(true);
+    expect(hasLeft(info, 'per_chirag')).toBe(false);
+    expect(hasLeft(info, 'constructor')).toBe(false);
   });
 
   it('summarises a shared group', () => {
     expect(sharedSummary(2, 4)).toBe('Shared · 2 of 4 on SplitSnap');
     expect(sharedSummary(1, 1)).toBe('Shared');
+    // Members who left are neither on SplitSnap nor invited.
+    expect(sharedSummary(2, 4, 1)).toBe('Shared · 2 of 3 on SplitSnap');
+    expect(sharedSummary(1, 2, 1)).toBe('Shared');
   });
 
   it('explains a locked group picker in one line', () => {
@@ -212,6 +245,28 @@ describe('syncErrorText', () => {
     expect(syncErrorText(new Error("That code doesn't match a group"), FALLBACK)).toBe(WRONG_CODE_TEXT);
     expect(syncErrorText(new Error('TypeError: Failed to fetch'), FALLBACK)).toBe(OFFLINE_TEXT);
     expect(syncErrorText(new Error('Network request failed'), FALLBACK)).toBe(OFFLINE_TEXT);
+  });
+
+  it('explains sharing a group the server already has, instead of the database message', () => {
+    const duplicate = new SyncError('invalid', 'duplicate key value violates unique constraint "groups_pkey"');
+    expect(syncErrorText(duplicate, FALLBACK)).toBe(RESHARED_TEXT);
+    expect(RESHARED_TEXT).toBe(
+      "This group was shared before, so it can't be shared again. Ask a member for the code and join it instead.",
+    );
+  });
+
+  it('never shows Postgres internals, even short ones', () => {
+    const internals = [
+      'new row for relation "expenses" violates check constraint "expenses_data_check"',
+      'value too long for type character varying(60) in column "name"',
+      'syntax error at or near "select"',
+      "Could not find the function public.push_changes(p) in the schema cache",
+      'relation "public.groups" does not exist',
+    ];
+    for (const message of internals) expect(syncErrorText(new SyncError('invalid', message), FALLBACK)).toBe(FALLBACK);
+    expect(syncErrorText(new SyncError('invalid', 'Choose the name the others will see first.'), FALLBACK)).toBe(
+      'Choose the name the others will see first.',
+    );
   });
 
   it('falls back for anything else, including a very long invalid message', () => {

@@ -2,6 +2,7 @@ import { ME_ID } from '../../app/src/types';
 import type { AppState, Debt, Expense, ExpenseInput, Payment, PaymentInput } from '../../app/src/types';
 import { groupTimeline } from '../../app/src/store/selectors';
 import {
+  changedGroupFields,
   cleanName,
   csvPersonIds,
   deletionNote,
@@ -20,6 +21,7 @@ import {
   reminderMessage,
   simplifyExplanation,
 } from '../../app/src/screens/groups/groupLogic';
+import type { GroupFormFields } from '../../app/src/screens/groups/groupLogic';
 import {
   firstName,
   GROUP_EMOJIS,
@@ -258,6 +260,28 @@ describe('groupLogic: group editor', () => {
     expect(meLabel(' you ')).toBe('You');
     expect(meLabel(undefined)).toBe('You');
     expect(meLabel('Sam')).toBe('Sam (you)');
+  });
+});
+
+describe('groupLogic: saving the group editor', () => {
+  const start: GroupFormFields = { name: 'Goa Trip', type: 'trip', emoji: '🏖️', currency: 'INR', simplify: false, archived: false };
+
+  it('patches nothing when nothing was changed', () => {
+    expect(changedGroupFields(start, { ...start })).toEqual({});
+    expect(changedGroupFields(start, { ...start, name: '  Goa   Trip ' })).toEqual({});
+  });
+
+  it('patches only the fields the user changed, so other members\' edits to a shared group stay', () => {
+    expect(changedGroupFields(start, { ...start, name: ' Goa 2026 ' })).toStrictEqual({ name: 'Goa 2026' });
+    expect(changedGroupFields(start, { ...start, emoji: '🌴', simplify: true })).toStrictEqual({ emoji: '🌴', simplifyDebts: true });
+    expect(changedGroupFields(start, { ...start, type: 'other', currency: 'USD' })).toStrictEqual({ type: 'other', defaultCurrency: 'USD' });
+  });
+
+  it('archives with true and unarchives with undefined', () => {
+    expect(changedGroupFields(start, { ...start, archived: true })).toStrictEqual({ archived: true });
+    const patch = changedGroupFields({ ...start, archived: true }, start);
+    expect(Object.keys(patch)).toEqual(['archived']);
+    expect(patch.archived).toBeUndefined();
   });
 });
 

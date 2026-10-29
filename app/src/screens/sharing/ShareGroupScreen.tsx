@@ -36,8 +36,10 @@ import {
   inviteMessage,
   inviteTitle,
   memberBadge,
+  memberStatus,
   syncErrorText,
 } from './sharingLogic';
+import type { MemberStatus } from './sharingLogic';
 
 type Props = RootScreenProps<'ShareGroup'>;
 
@@ -135,13 +137,16 @@ export function DisplayNameForm({ initial, onSave, saveTitle = 'Save', onCancel,
   );
 }
 
-function MemberBadge({ onSplitSnap }: { onSplitSnap: boolean }) {
-  const tint = onSplitSnap ? colors.primaryDark : colors.textMuted;
+const BADGE_ICONS: Record<MemberStatus, string> = { on: 'checkmark-circle', invited: 'time-outline', left: 'exit-outline' };
+
+function MemberBadge({ status }: { status: MemberStatus }) {
+  const on = status === 'on';
+  const tint = on ? colors.primaryDark : colors.textMuted;
   return (
-    <View style={[styles.badge, onSplitSnap ? styles.badgeOn : styles.badgeInvited]}>
-      <Icon name={onSplitSnap ? 'checkmark-circle' : 'time-outline'} size={13} color={tint} />
+    <View style={[styles.badge, on ? styles.badgeOn : styles.badgeInvited]}>
+      <Icon name={BADGE_ICONS[status]} size={13} color={tint} />
       <AppText variant="caption" weight="semibold" color={tint} numberOfLines={1}>
-        {memberBadge(onSplitSnap)}
+        {memberBadge(status)}
       </AppText>
     </View>
   );
@@ -324,6 +329,10 @@ export default function ShareGroupScreen({ navigation, route }: Props) {
 
   // ----- shared: the code and who is on SplitSnap -----
 
+  const statusOf = (personId: string): MemberStatus =>
+    personId === ME_ID ? 'on' : memberStatus(info, personId, sync.isOnSplitSnap(groupId, personId));
+  const anyoneLeft = members.some((person) => statusOf(person.id) === 'left');
+
   return (
     <Screen>
       <Card style={styles.codeCard}>
@@ -395,22 +404,23 @@ export default function ShareGroupScreen({ navigation, route }: Props) {
       <ListCard dividerInset={MEMBER_INSET}>
         {members.map((person) => {
           const isMe = person.id === ME_ID;
-          const on = isMe || sync.isOnSplitSnap(groupId, person.id);
+          const status = statusOf(person.id);
           const label = isMe ? meLabel(displayName ?? person.name) : person.name;
           return (
-            <View key={person.id} style={styles.memberRow} accessible accessibilityLabel={`${label}, ${memberBadge(on)}`}>
+            <View key={person.id} style={styles.memberRow} accessible accessibilityLabel={`${label}, ${memberBadge(status)}`}>
               <PersonAvatar person={person} size={AVATAR} />
               <AppText weight="medium" numberOfLines={1} style={styles.flex}>
                 {label}
               </AppText>
-              <MemberBadge onSplitSnap={on} />
+              <MemberBadge status={status} />
             </View>
           );
         })}
       </ListCard>
       <AppText variant="caption" style={styles.hint}>
-        Invited people join with the code and tap "That's me" on their name. Anyone can also join as a new member. Bill
-        photos stay on the phone that took them.
+        Invited people join with the code and tap "That's me" on their name. Anyone can also join as a new member.
+        {anyoneLeft ? ' People who left stay on the list because older expenses name them.' : ''} Bill photos stay on the
+        phone that took them.
       </AppText>
     </Screen>
   );

@@ -255,80 +255,85 @@ export default function JoinGroupScreen({ navigation }: Props) {
       ) : null}
       {joinError ? <Banner tone="danger" message={joinError} style={styles.gapAbove} /> : null}
 
-      <SectionHeader title="Who are you in this group?" />
-      {choices.open.length > 0 ? (
-        <ListCard dividerInset={MEMBER_INSET}>
-          {choices.open.map((m, i) => {
-            const likely = m.id === choices.suggested;
-            return (
-              <View key={m.id} style={styles.memberRow}>
-                <Avatar name={m.name} color={colorFor(m.id, i)} size={AVATAR} />
-                <View style={styles.flex}>
-                  <AppText weight="medium" numberOfLines={1}>
-                    {m.name}
-                  </AppText>
-                  {likely ? (
-                    <AppText variant="caption" color={colors.primaryDark}>
-                      Same name as yours
-                    </AppText>
-                  ) : null}
-                </View>
-                <Button
-                  title="That's me"
-                  size="sm"
-                  variant={likely ? 'primary' : 'secondary'}
-                  onPress={() => void join(m.id, m.name, openNames)}
-                  disabled={!!busy}
-                  accessibilityLabel={`That's me: join as ${m.name}`}
-                  testID={`join-claim-${m.id}`}
-                />
-              </View>
-            );
-          })}
-        </ListCard>
-      ) : (
-        <Card>
-          <AppText variant="caption">Everyone on the group's list has joined already. If you're new, join as a new member below.</AppText>
-        </Card>
-      )}
-
-      {choices.taken.length > 0 ? (
+      {/* Already in: nothing to choose, only the banner's way into the group. */}
+      {alreadyIn ? null : (
         <>
-          <SectionHeader title="Already on SplitSnap" />
-          <ListCard dividerInset={MEMBER_INSET}>
-            {choices.taken.map((m) => (
-              <View key={m.id} style={styles.memberRow} accessible accessibilityLabel={`${m.name}, already joined`}>
-                <Avatar name={m.name} color={colors.textFaint} size={AVATAR} />
-                <AppText weight="medium" color={colors.textMuted} numberOfLines={1} style={styles.flex}>
-                  {m.name}
-                </AppText>
-                <Icon name="lock-closed-outline" size={14} color={colors.textFaint} />
-                <AppText variant="caption">Taken</AppText>
-              </View>
-            ))}
-          </ListCard>
-        </>
-      ) : null}
+          <SectionHeader title="Who are you in this group?" />
+          {choices.open.length > 0 ? (
+            <ListCard dividerInset={MEMBER_INSET}>
+              {choices.open.map((m, i) => {
+                const likely = m.id === choices.suggested;
+                return (
+                  <View key={m.id} style={styles.memberRow}>
+                    <Avatar name={m.name} color={colorFor(m.id, i)} size={AVATAR} />
+                    <View style={styles.flex}>
+                      <AppText weight="medium" numberOfLines={1}>
+                        {m.name}
+                      </AppText>
+                      {likely ? (
+                        <AppText variant="caption" color={colors.primaryDark}>
+                          Same name as yours
+                        </AppText>
+                      ) : null}
+                    </View>
+                    <Button
+                      title="That's me"
+                      size="sm"
+                      variant={likely ? 'primary' : 'secondary'}
+                      onPress={() => void join(m.id, m.name, openNames)}
+                      disabled={!!busy}
+                      accessibilityLabel={`That's me: join as ${m.name}`}
+                      testID={`join-claim-${m.id}`}
+                    />
+                  </View>
+                );
+              })}
+            </ListCard>
+          ) : (
+            <Card>
+              <AppText variant="caption">Everyone on the group's list has joined already. If you're new, join as a new member below.</AppText>
+            </Card>
+          )}
 
-      <SectionHeader title="Not on the list?" />
-      <Card style={styles.card}>
-        <AppText variant="label" weight="regular">
-          Join as a new member. The others see you as{' '}
-          <AppText variant="label" weight="semibold">
-            {displayName}
-          </AppText>
-          .
-        </AppText>
-        <Button
-          title="I'm not on this list: join as new member"
-          icon="person-add-outline"
-          variant="outline"
-          onPress={() => void join(null, null, openNames)}
-          disabled={!!busy}
-          fullWidth
-          testID="join-new-member"
-        />
-      </Card>
+          {choices.taken.length > 0 ? (
+            <>
+              <SectionHeader title="Already on SplitSnap" />
+              <ListCard dividerInset={MEMBER_INSET}>
+                {choices.taken.map((m) => (
+                  <View key={m.id} style={styles.memberRow} accessible accessibilityLabel={`${m.name}, already joined`}>
+                    <Avatar name={m.name} color={colors.textFaint} size={AVATAR} />
+                    <AppText weight="medium" color={colors.textMuted} numberOfLines={1} style={styles.flex}>
+                      {m.name}
+                    </AppText>
+                    <Icon name="lock-closed-outline" size={14} color={colors.textFaint} />
+                    <AppText variant="caption">Taken</AppText>
+                  </View>
+                ))}
+              </ListCard>
+            </>
+          ) : null}
+
+          <SectionHeader title="Not on the list?" />
+          <Card style={styles.card}>
+            <AppText variant="label" weight="regular">
+              Join as a new member. The others see you as{' '}
+              <AppText variant="label" weight="semibold">
+                {displayName}
+              </AppText>
+              .
+            </AppText>
+            <Button
+              title="I'm not on this list: join as new member"
+              icon="person-add-outline"
+              variant="outline"
+              onPress={() => void join(null, null, openNames)}
+              disabled={!!busy}
+              fullWidth
+              testID="join-new-member"
+            />
+          </Card>
+        </>
+      )}
 
       <View style={styles.footerLinks}>
         <Button

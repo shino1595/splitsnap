@@ -3,10 +3,12 @@
 // triggers' stamps, the check constraints and the six functions, each call one transaction.
 //
 // Postgres errors become SyncErrors the way a backend maps their codes: 'Sign in first' (28000)
-// and row security (42501) → 'denied'; failed casts and constraints (22xxx, 23xxx) and P0001 →
-// 'invalid'; a wrong join code (P0002) → 'not-found'. Known differences: timestamps are 'Z' ISO
-// strings with milliseconds (PostgREST sends '+00:00' and microseconds), JSON size limits are not
-// checked, and an offline call never reaches the server (no request lost after it was applied).
+// → 'network' (no session says nothing about the rows; the real backend also checks for one
+// before push and pull); row security (42501) → 'denied'; failed casts and constraints (22xxx,
+// 23xxx) and P0001 → 'invalid'; a wrong join code (P0002) → 'not-found'. Known differences:
+// timestamps are 'Z' ISO strings with milliseconds (PostgREST sends '+00:00' and microseconds),
+// JSON size limits are not checked, and an offline call never reaches the server (no request
+// lost after it was applied).
 import { EMPTY_BATCH, SyncError } from '../../app/src/sync/types';
 import type {
   GroupPreview,
@@ -184,7 +186,7 @@ export class FakeServer {
   }
 
   private user(phone: Phone): string {
-    if (phone.userId === null) throw new SyncError('denied', 'Sign in first');
+    if (phone.userId === null) throw new SyncError('network', 'Sign in first');
     return phone.userId;
   }
 
