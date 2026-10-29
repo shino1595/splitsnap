@@ -20,6 +20,8 @@ import ActivityScreen from '../screens/activity/ActivityScreen';
 import AccountScreen from '../screens/account/AccountScreen';
 import SettingsScreen from '../screens/account/SettingsScreen';
 import ImportSplitwiseScreen from '../screens/import/ImportSplitwiseScreen';
+import JoinGroupScreen from '../screens/sharing/JoinGroupScreen';
+import ShareGroupScreen from '../screens/sharing/ShareGroupScreen';
 import SyncTestScreen from '../screens/sharing/SyncTestScreen';
 import AddExpenseScreen from '../screens/expense/AddExpenseScreen';
 import ExpenseDetailScreen from '../screens/expense/ExpenseDetailScreen';
@@ -57,7 +59,7 @@ const stackScreenOptions = (): NativeStackNavigationOptions => ({
 
 /**
  * Editor screens (AddExpense, SplitOptions, PaidBy, ScanBill, ItemizedSplit, SettleUp,
- * FriendEdit, GroupEdit, ImportSplitwise) slide up as modals on iOS, where a modal has no back button, so they
+ * FriendEdit, GroupEdit, ImportSplitwise, ShareGroup, JoinGroup) slide up as modals on iOS, where a modal has no back button, so they
  * get a close button. Android uses a normal push (sliding up, so it still reads as an editor)
  * and web a plain push, both with the usual back arrow.
  */
@@ -209,6 +211,8 @@ export default function RootNavigator() {
         options={({ navigation }) => modal(navigation, 'Import from Splitwise')}
       />
       <Stack.Screen name="SyncTest" component={SyncTestScreen} options={{ title: 'Shared groups test' }} />
+      <Stack.Screen name="ShareGroup" component={ShareGroupScreen} options={({ navigation }) => modal(navigation, 'Share group')} />
+      <Stack.Screen name="JoinGroup" component={JoinGroupScreen} options={({ navigation }) => modal(navigation, 'Join a group')} />
     </Stack.Navigator>
   );
 }

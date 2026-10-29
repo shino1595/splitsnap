@@ -8,6 +8,7 @@ import { nonGroupDebts, nonGroupTimeline, overallSummary } from '../../store/sel
 import { isSettled, summarizeFor } from '../../lib/balances';
 import type { BalanceSummary } from '../../lib/balances';
 import { formatCurrencyAmounts } from '../../lib/money';
+import { useSync } from '../../sync/SyncProvider';
 import { colors, spacing, themed } from '../../theme';
 import { AppText, AvatarStack, Button, Card, EmptyState, Icon, IconButton, Screen, SectionHeader, wrapFriendlyAmounts } from '../../ui';
 import { BalanceHeadline, balanceSentence } from './components/BalanceBits';
@@ -105,6 +106,7 @@ function GroupRow({ row, onPress }: { row: GroupRowData; onPress: () => void }) 
 
 export default function GroupsScreen({ navigation }: Props) {
   const state = useAppState();
+  const sync = useSync();
   const [showNonGroup, setShowNonGroup] = React.useState(false);
   const [showArchived, setShowArchived] = React.useState(false);
 
@@ -134,6 +136,20 @@ export default function GroupsScreen({ navigation }: Props) {
   const openGroup = (groupId: string) => navigation.navigate('GroupDetail', { groupId });
   const newGroup = () => navigation.navigate('GroupEdit');
   const importGroup = () => navigation.navigate('ImportSplitwise');
+  // Hidden (the app looks as before) when this build has no shared-groups server.
+  const joinButton =
+    sync.status !== 'off' ? (
+      <Button
+        title="Join a group"
+        icon="enter-outline"
+        variant="ghost"
+        onPress={() => navigation.navigate('JoinGroup')}
+        fullWidth
+        style={styles.importGroup}
+        accessibilityLabel="Join a shared group with a code"
+        testID="groups-join"
+      />
+    ) : null;
 
   if (rows.current.length === 0 && rows.archived.length === 0 && nonGroup.entries.length === 0) {
     return (
@@ -145,6 +161,7 @@ export default function GroupsScreen({ navigation }: Props) {
           actionTitle="Start a new group"
           onAction={newGroup}
         />
+        {joinButton}
         <Button title="Import from Splitwise" icon="download-outline" variant="ghost" onPress={importGroup} fullWidth testID="groups-import" />
       </Screen>
     );
@@ -175,6 +192,7 @@ export default function GroupsScreen({ navigation }: Props) {
         fullWidth
         style={styles.newGroup}
       />
+      {joinButton}
       <Button
         title="Import from Splitwise"
         icon="download-outline"

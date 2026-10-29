@@ -130,8 +130,12 @@ export interface PushGroup {
   defaultCurrency: CurrencyCode;
   simplifyDebts: boolean;
   archived: boolean;
-  /** true = the group was deleted (server soft-deletes it). */
-  deleted?: boolean;
+}
+
+/** A shared group deleted on this phone: only the id travels (push_changes keeps the other fields). */
+export interface PushGroupDelete {
+  id: ID;
+  deleted: true;
 }
 
 export interface PushMember {
@@ -163,7 +167,7 @@ export interface PushActivity {
 }
 
 export interface PushPayload {
-  groups: PushGroup[];
+  groups: (PushGroup | PushGroupDelete)[];
   members: PushMember[];
   expenses: PushData[];
   payments: PushData[];
@@ -239,6 +243,44 @@ export interface LocalBatch {
   expenses: Expense[];
   payments: Payment[];
   comments: { expenseId: ID; comment: Comment }[];
-  /** Already re-worded for this phone (§6). */
+  /** Ids rewritten, summary still neutral: the reducer re-words it for this phone (§6). */
   activity: Activity[];
+}
+
+// ---------- What screens use (useSync() in SyncProvider.tsx) ----------
+
+export type SyncStatus =
+  /** No Supabase project in this build (config.ts empty): every sharing control is hidden. */
+  | 'off'
+  /** Configured, but you haven't shared or joined anything yet (no sign-in made). */
+  | 'idle'
+  | 'connecting'
+  | 'live'
+  /** Signed in but the server can't be reached; changes wait in the outbox. */
+  | 'offline';
+
+export interface SyncApi {
+  status: SyncStatus;
+  /** Changes waiting to be sent. */
+  pending: number;
+  /** Last problem worth showing (e.g. "You are no longer in Goa Trip"), or null. */
+  lastError: string | null;
+  /** Your name as other members see it (null until set). */
+  displayName: string | null;
+  setDisplayName(name: string): Promise<void>;
+  /** Bookkeeping for a shared group, or null when the group is only on this phone. */
+  shared(groupId: ID): SharedGroupInfo | null;
+  /** True when this local person is a real SplitSnap user in that shared group (ME_ID: always). */
+  isOnSplitSnap(groupId: ID, personId: ID): boolean;
+  /** Uploads a local group (signs in first if needed). Returns the join code. */
+  shareGroup(groupId: ID): Promise<string>;
+  previewJoin(code: string): Promise<GroupPreview | null>;
+  /** memberId = the placeholder you claim ("That's me"), or null to join as a new member. Returns the local group id. */
+  joinGroup(code: string, memberId: ID | null): Promise<ID>;
+  /** Stops syncing; the local copy stays as an ordinary group. */
+  leaveGroup(groupId: ID): Promise<void>;
+  /** New code (enabled = true) or joining switched off (enabled = false). Returns the new code. */
+  resetJoinCode(groupId: ID, enabled: boolean): Promise<string>;
+  /** Pull now and send anything waiting. */
+  syncNow(): Promise<void>;
 }

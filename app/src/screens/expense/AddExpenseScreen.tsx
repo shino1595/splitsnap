@@ -12,6 +12,7 @@ import { formatDate, todayISO } from '../../lib/dates';
 import { CURRENCIES, currencyDecimals, minorToInputText } from '../../lib/money';
 import { frequencyLabel, RECURRENCE_FREQUENCIES } from '../../lib/recurrence';
 import { defaultSplit, describeSplit } from '../../lib/split';
+import { useSync } from '../../sync/SyncProvider';
 import { colors, font, radius, spacing, themed } from '../../theme';
 import {
   AmountField,
@@ -50,6 +51,7 @@ import { PaidSplitSentence } from './components/PaidSplitSentence';
 import { ParticipantsCard } from './components/ParticipantsCard';
 import { ReceiptThumb } from './components/ReceiptThumb';
 import { ItemByItemLink, ScanBillCard } from './components/ScanEntry';
+import { sharedGroupLock } from '../sharing/sharingLogic';
 
 type Props = RootScreenProps<'AddExpense'>;
 
@@ -102,6 +104,7 @@ export default function AddExpenseScreen({ navigation, route }: Props) {
   const keepDraft = !!params.keepDraft;
   const state = useAppState();
   const actions = useActions();
+  const sync = useSync();
   const { draft, setDraft, startNew, startEdit, total, resolvedPayers, errors, toInput } = useDraft();
 
   const [missing, setMissing] = React.useState(false);
@@ -286,8 +289,13 @@ export default function AddExpenseScreen({ navigation, route }: Props) {
     setDraft({ participantIds: ids });
   };
 
+  // A saved expense of a shared group can't move to another group (SYNC_DESIGN §4.5).
+  const savedGroupId = draft.editingId ? state.expenses[draft.editingId]?.groupId ?? null : null;
+  const lockedGroup = savedGroupId && sync.shared(savedGroupId) ? state.groups[savedGroupId] : undefined;
+  const groupLock = lockedGroup ? sharedGroupLock('expense', lockedGroup.name) : null;
+
   const onGroup = (groupId: ID | null) => {
-    if (groupId === draft.groupId) return;
+    if (groupId === draft.groupId || groupLock) return;
     setDraft({ groupId });
   };
 
@@ -374,6 +382,7 @@ export default function AddExpenseScreen({ navigation, route }: Props) {
         onChangeGroup={onGroup}
         onAddFriend={addFriend}
         error={peopleError}
+        groupLock={groupLock}
       />
 
       {!itemized || itemized.bill.items.length === 0 ? <ScanBillCard onPress={openScan} /> : null}

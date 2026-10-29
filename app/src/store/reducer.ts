@@ -32,6 +32,7 @@ import { canDeleteGroup, canRemoveFriend, canRemoveGroupMember } from './selecto
 import { blankState } from './stateShape';
 import * as text from './activityText';
 import type { ImportPlan } from '../lib/splitwiseImport';
+import type { LocalBatch } from '../sync/types';
 
 /** Oldest entries beyond this are dropped so the saved state stays small. */
 export const MAX_ACTIVITY = 500;
@@ -86,7 +87,9 @@ export type AppAction =
   | ({ type: 'import/apply'; plan: ImportPlan } & Stamp)
   | ({ type: 'settings/update'; patch: Partial<Settings> } & Stamp)
   /** Materialise due copies of recurring expenses; new ids are `${idBase}_<n>` / `${idBase}_a<n>`. */
-  | { type: 'recurring/process'; today: ISODate; at: ISODateTime; idBase: string };
+  | { type: 'recurring/process'; today: ISODate; at: ISODateTime; idBase: string }
+  /** Changes from a shared group's server (ids already local). Logs no activity of its own. */
+  | { type: 'sync/applyRemote'; batch: LocalBatch; at: ISODateTime };
 
 // ---------- Small helpers ----------
 
@@ -113,6 +116,35 @@ function compact<T extends object>(obj: T): T {
 
 function samePerson(a: Person, b: Person): boolean {
   return a.name === b.name && a.email === b.email && a.phone === b.phone && a.upiId === b.upiId && a.color === b.color;
+}
+
+/** Deep equality for plain JSON values; key order and undefined keys don't count. */
+function sameValue(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
+  if (Array.isArray(a) || Array.isArray(b)) {
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+    return a.every((v, i) => sameValue(v, b[i]));
+  }
+  const x = a as Record<string, unknown>;
+  const y = b as Record<string, unknown>;
+  const keysX = Object.keys(x).filter((k) => x[k] !== undefined);
+  const keysY = Object.keys(y).filter((k) => y[k] !== undefined);
+  return keysX.length === keysY.length && keysX.every((k) => sameValue(x[k], y[k]));
+}
+
+const byCreatedAt = (a: Comment, b: Comment): number => (a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0);
+
+/** `local` plus the incoming comments it doesn't have yet, oldest first; the same array when none are new. */
+function mergeComments(local: Comment[], incoming: Comment[]): Comment[] {
+  const ids = local.map((c) => c.id);
+  const fresh: Comment[] = [];
+  for (const c of incoming) {
+    if (ids.indexOf(c.id) >= 0) continue;
+    ids.push(c.id);
+    fresh.push(c);
+  }
+  return fresh.length ? [...local, ...fresh].sort(byCreatedAt) : local;
 }
 
 function addActivity(
@@ -323,6 +355,136 @@ export function processRecurring(state: AppState, today: ISODate, at: ISODateTim
     expenses[parent.id] = { ...parent, recurrence: { frequency: recurrence.frequency, nextDate: due.nextDate } };
   }
   return { ...next, expenses };
+}
+
+const newestFirst = (a: Activity, b: Activity): number => (a.at > b.at ? -1 : a.at < b.at ? 1 : 0);
+
+/**
+ * Applies changes from a shared group's server (sync/applyRemote, docs/SYNC_DESIGN.md §5).
+ * Server records replace local ones by id, except what only this phone has: comments the
+ * server copy lacks and the bill photo. Logs nothing itself; the batch's own activity entries
+ * are added, re-worded for this phone. Returns the same state object when nothing changes.
+ */
+export function applyRemoteBatch(state: AppState, batch: LocalBatch, at: ISODateTime): AppState {
+  // New people are created; known ones only take the new name. You are never touched.
+  const people = { ...state.people };
+  let peopleChanged = false;
+  for (const p of batch.people) {
+    if (p.id === ME_ID) continue;
+    const name = p.name.trim();
+    const existing = people[p.id];
+    if (existing) {
+      if (!name || name === existing.name) continue;
+      people[p.id] = { ...existing, name };
+    } else {
+      const color = p.color || avatarPalette[Object.keys(people).length % avatarPalette.length];
+      people[p.id] = { id: p.id, name: name || 'Friend', color, createdAt: at };
+    }
+    peopleChanged = true;
+  }
+
+  // Groups are replaced whole. Members the app doesn't know (or listed twice) are left out.
+  const groups = { ...state.groups };
+  const changedGroupIds: ID[] = [];
+  for (const g of batch.groups) {
+    const memberIds = g.memberIds.filter((id, i) => g.memberIds.indexOf(id) === i && !!people[id]);
+    const group: Group = compact({ ...g, memberIds });
+    if (groups[g.id] && sameValue(groups[g.id], group)) continue;
+    groups[g.id] = group;
+    changedGroupIds.push(g.id);
+  }
+  let groupsChanged = changedGroupIds.length > 0;
+
+  const expenses = { ...state.expenses };
+  let expensesChanged = false;
+  for (const remote of batch.expenses) {
+    const local = expenses[remote.id];
+    const merged: Expense = compact({
+      ...remote,
+      comments: mergeComments(local ? local.comments : [], remote.comments || []),
+      // Bill photos stay on the phone that took them, so the server copy has none.
+      receiptUri: remote.receiptUri || (local ? local.receiptUri : undefined),
+    });
+    if (local && sameValue(local, merged)) continue;
+    expenses[remote.id] = merged;
+    expensesChanged = true;
+  }
+  for (const { expenseId, comment } of batch.comments) {
+    const e = expenses[expenseId];
+    if (!e) continue;
+    const comments = mergeComments(e.comments, [comment]);
+    if (comments === e.comments) continue;
+    expenses[expenseId] = { ...e, comments };
+    expensesChanged = true;
+  }
+
+  const payments = { ...state.payments };
+  let paymentsChanged = false;
+  for (const remote of batch.payments) {
+    if (payments[remote.id] && sameValue(payments[remote.id], remote)) continue;
+    payments[remote.id] = compact(remote);
+    paymentsChanged = true;
+  }
+
+  // Like group/delete without the checks. Applied last, so rows of the group in this batch go too.
+  const gone = batch.deletedGroupIds;
+  if (gone.length > 0) {
+    for (const id of gone) {
+      if (!groups[id]) continue;
+      delete groups[id];
+      groupsChanged = true;
+    }
+    const inGone = (groupId: ID | null): boolean => groupId !== null && gone.indexOf(groupId) >= 0;
+    for (const e of Object.values(expenses)) {
+      if (!inGone(e.groupId)) continue;
+      delete expenses[e.id];
+      expensesChanged = true;
+    }
+    for (const p of Object.values(payments)) {
+      if (!inGone(p.groupId)) continue;
+      delete payments[p.id];
+      paymentsChanged = true;
+    }
+  }
+
+  let next: AppState = state;
+  if (peopleChanged || groupsChanged || expensesChanged || paymentsChanged) {
+    next = {
+      ...state,
+      people: peopleChanged ? people : state.people,
+      groups: groupsChanged ? groups : state.groups,
+      expenses: expensesChanged ? expenses : state.expenses,
+      payments: paymentsChanged ? payments : state.payments,
+    };
+  }
+  for (const id of changedGroupIds) {
+    const group = next.groups[id];
+    if (group) next = withFriends(next, group.memberIds);
+  }
+
+  // Activity is worded from the state after everything above, so names and "you" fit this phone.
+  const seen = new Set(next.activity.map((a) => a.id));
+  const incoming: Activity[] = [];
+  for (const a of batch.activity) {
+    if (seen.has(a.id)) continue;
+    seen.add(a.id);
+    incoming.push(compact({ ...a, summary: text.rewordRemoteActivity(next, a) }));
+  }
+  if (incoming.length > 0) {
+    incoming.sort(newestFirst);
+    const merged: Activity[] = [];
+    let i = 0;
+    for (const entry of next.activity) {
+      while (i < incoming.length && incoming[i].at > entry.at) merged.push(incoming[i++]);
+      merged.push(entry);
+    }
+    merged.push(...incoming.slice(i));
+    const activity = merged.slice(0, MAX_ACTIVITY);
+    // Entries older than everything the cap keeps change nothing.
+    const before = next.activity;
+    if (activity.some((entry, k) => entry !== before[k])) next = { ...next, activity };
+  }
+  return next;
 }
 
 // ---------- Reducer ----------
@@ -595,6 +757,9 @@ export function appReducer(state: AppState, action: AppAction): AppState {
 
     case 'recurring/process':
       return processRecurring(state, action.today, action.at, action.idBase);
+
+    case 'sync/applyRemote':
+      return applyRemoteBatch(state, action.batch, action.at);
 
     default:
       return state;

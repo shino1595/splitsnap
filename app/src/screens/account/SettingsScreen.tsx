@@ -1,5 +1,6 @@
 import * as React from 'react';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { ME_ID } from '../../types';
 import type { RootScreenProps } from '../../navigation/types';
 import { useActions, useAppState } from '../../store/AppStore';
 import { liveExpenses, livePayments } from '../../store/selectors';
@@ -7,6 +8,10 @@ import { todayISO } from '../../lib/dates';
 import { AppText, Banner, Card, confirmAsync, ListItem, Screen, SectionHeader, shareCsv, showAlert, SwitchRow } from '../../ui';
 import { colors, spacing, themed } from '../../theme';
 import { isSyncConfigured } from '../../sync/config';
+import { useSync } from '../../sync/SyncProvider';
+import type { SyncStatus } from '../../sync/types';
+import { DisplayNameForm } from '../sharing/ShareGroupScreen';
+import { displayNameDraft, syncStatusText } from '../sharing/sharingLogic';
 import { buildFullExport } from './accountData';
 import { OcrSettingsCard } from './components/OcrSettingsCard';
 import { CurrencyPickerRow, ListCard, RowIcon } from './components/rows';
@@ -17,12 +22,23 @@ function plural(n: number, one: string, many: string): string {
   return `${n} ${n === 1 ? one : many}`;
 }
 
+/** The status row's icon and its colours (read while rendering, so they follow the theme). */
+function statusLook(status: SyncStatus, hasError: boolean): { icon: string; color: string; background: string } {
+  if (hasError) return { icon: 'alert-circle-outline', color: colors.danger, background: colors.dangerSoft };
+  if (status === 'live') return { icon: 'cloud-done-outline', color: colors.primaryDark, background: colors.primarySoft };
+  if (status === 'offline') return { icon: 'cloud-offline-outline', color: colors.warning, background: colors.warningSoft };
+  return { icon: 'cloud-outline', color: colors.textMuted, background: colors.background };
+}
+
 export default function SettingsScreen({ navigation }: RootScreenProps<'Settings'>) {
   const state = useAppState();
   const actions = useActions();
   const { settings } = state;
   const [exporting, setExporting] = React.useState(false);
   const [notice, setNotice] = React.useState<Notice | null>(null);
+  const sync = useSync();
+  const sharing = sync.status !== 'off';
+  const [editingName, setEditingName] = React.useState(false);
 
   const counts = React.useMemo(
     () => ({ expenses: liveExpenses(state).length, payments: livePayments(state).length }),
@@ -153,24 +169,64 @@ export default function SettingsScreen({ navigation }: RootScreenProps<'Settings
         />
       </ListCard>
 
-      {isSyncConfigured() ? (
+      {sharing || isSyncConfigured() ? (
         <>
           <SectionHeader title="Shared groups" />
           <ListCard>
-            <ListItem
-              left={<RowIcon icon="pulse-outline" />}
-              title="Test the connection"
-              subtitle="Sign in and get a live update back from the server"
-              onPress={() => navigation.navigate('SyncTest')}
-              showChevron
-              testID="settings-sync-test"
-            />
+            {sharing && editingName ? (
+              <View style={styles.nameForm}>
+                <DisplayNameForm
+                  initial={displayNameDraft(sync.displayName, state.people[ME_ID]?.name)}
+                  onSave={async (name) => {
+                    await sync.setDisplayName(name);
+                    setEditingName(false);
+                  }}
+                  onCancel={() => setEditingName(false)}
+                  autoFocus
+                />
+              </View>
+            ) : null}
+            {sharing && !editingName ? (
+              <ListItem
+                left={<RowIcon icon="person-outline" />}
+                title="Your name"
+                subtitle={sync.displayName ?? 'Not set yet. The others in a shared group see this name.'}
+                onPress={() => setEditingName(true)}
+                showChevron
+                accessibilityLabel={`Your name in shared groups: ${sync.displayName ?? 'not set'}. Change`}
+                testID="settings-display-name"
+              />
+            ) : null}
+            {sharing ? (
+              <ListItem
+                left={<RowIcon {...statusLook(sync.status, !!sync.lastError)} />}
+                title={syncStatusText(sync.status, sync.pending)}
+                subtitle={sync.lastError ?? (sync.status === 'idle' ? 'Share or join a group to start' : 'Tap to sync now')}
+                onPress={() => {
+                  sync.syncNow().catch(() => undefined);
+                }}
+                accessibilityLabel={`Sync status: ${syncStatusText(sync.status, sync.pending)}${sync.lastError ? `. ${sync.lastError}` : ''}. Sync now`}
+                testID="settings-sync-status"
+              />
+            ) : null}
+            {isSyncConfigured() ? (
+              <ListItem
+                left={<RowIcon icon="pulse-outline" />}
+                title="Test the connection"
+                subtitle="Sign in and get a live update back from the server"
+                onPress={() => navigation.navigate('SyncTest')}
+                showChevron
+                testID="settings-sync-test"
+              />
+            ) : null}
           </ListCard>
         </>
       ) : null}
 
       <AppText variant="caption" align="center" style={styles.footnote}>
-        SplitSnap keeps everything on this device. Bill photos are only sent to OCR.space when you scan one.
+        {sharing
+          ? 'SplitSnap keeps everything on this device, except shared groups, which sync through the SplitSnap server. Bill photos never leave the phone, except to OCR.space when you scan one.'
+          : 'SplitSnap keeps everything on this device. Bill photos are only sent to OCR.space when you scan one.'}
       </AppText>
     </Screen>
   );
@@ -181,4 +237,5 @@ const styles = themed(() => StyleSheet.create({
   switchCard: { marginTop: spacing.sm, paddingVertical: spacing.xs },
   notice: { marginBottom: spacing.sm },
   footnote: { marginTop: spacing.xl, paddingHorizontal: spacing.lg },
+  nameForm: { padding: spacing.lg },
 }));

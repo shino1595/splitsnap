@@ -7,6 +7,7 @@ import type { RootScreenProps } from '../../navigation/types';
 import { useActions, useAppState } from '../../store/AppStore';
 import { canDeleteGroup, canRemoveGroupMember, listFriends, liveExpenses, livePayments, personName } from '../../store/selectors';
 import { CURRENCIES, currencyInfo } from '../../lib/money';
+import { useSync } from '../../sync/SyncProvider';
 import { avatarPalette, colors, spacing, themed } from '../../theme';
 import {
   AppText,
@@ -31,6 +32,7 @@ import { MemberPicker } from './components/MemberPicker';
 import { MissingGroup } from './components/MissingGroup';
 import { GROUP_TYPES, groupTypeInfo } from './components/groupMeta';
 import { cleanName, deletionNote, findPersonByName, lockedMemberDetail, memberNets } from './groupLogic';
+import { memberBadge, syncErrorText } from '../sharing/sharingLogic';
 
 type Props = RootScreenProps<'GroupEdit'>;
 
@@ -44,6 +46,9 @@ const CURRENCY_OPTIONS = CURRENCIES.map((c) => ({
 
 const SIMPLIFY_HELP =
   'Combines debts so everyone pays as few people as possible. Nobody ends up owing more or less in total.';
+
+/** Option A has no member removal on the server: people leave a shared group themselves. */
+const SHARED_REMOVE_REASON = 'People leave a shared group themselves, from their own phone, so nobody can remove them.';
 
 /** Everything the form edits, as one comparable string. */
 function formKey(
@@ -62,8 +67,11 @@ export default function GroupEditScreen({ navigation, route }: Props) {
   const groupId = route.params?.groupId;
   const state = useAppState();
   const actions = useActions();
+  const sync = useSync();
   const existing = groupId ? state.groups[groupId] : undefined;
   const isEdit = !!groupId;
+  const shared = !!existing && sync.status !== 'off' && !!sync.shared(existing.id);
+  const [leaving, setLeaving] = React.useState(false);
 
   const [name, setName] = React.useState(existing?.name ?? '');
   const [type, setType] = React.useState<GroupType>(existing?.type ?? 'trip');
@@ -132,6 +140,15 @@ export default function GroupEditScreen({ navigation, route }: Props) {
     const reasons: Record<ID, string> = {};
     const details: Record<ID, string> = {};
     if (!existing) return { reasons, details };
+    if (shared) {
+      // Nobody can be removed; the line under each name is their badge instead.
+      for (const id of existing.memberIds) {
+        if (id === ME_ID) continue;
+        reasons[id] = SHARED_REMOVE_REASON;
+        details[id] = memberBadge(sync.isOnSplitSnap(existing.id, id));
+      }
+      return { reasons, details };
+    }
     const nets = memberNets(state, existing.id);
     for (const id of existing.memberIds) {
       if (id === ME_ID) continue;
@@ -141,7 +158,7 @@ export default function GroupEditScreen({ navigation, route }: Props) {
       details[id] = lockedMemberDetail(nets.find((n) => n.id === id)?.amounts ?? {});
     }
     return { reasons, details };
-  }, [state, existing]);
+  }, [state, existing, shared, sync]);
 
   const deleteGuard = React.useMemo(() => (existing ? canDeleteGroup(state, existing.id) : null), [state, existing]);
 
@@ -259,10 +276,16 @@ export default function GroupEditScreen({ navigation, route }: Props) {
       return;
     }
     busyRef.current = true;
-    const ok = await confirmAsync(`Delete "${existing.name}"?`, `This can't be undone.${recordNote}`, {
-      confirmText: 'Delete group',
-      destructive: true,
-    });
+    const ok = shared
+      ? await confirmAsync(
+          `Delete "${existing.name}" for everyone?`,
+          `It is a shared group, so it disappears from every member's phone too. This can't be undone.${recordNote}`,
+          { confirmText: 'Delete for everyone', destructive: true },
+        )
+      : await confirmAsync(`Delete "${existing.name}"?`, `This can't be undone.${recordNote}`, {
+          confirmText: 'Delete group',
+          destructive: true,
+        });
     if (!ok) {
       busyRef.current = false;
       return;
@@ -276,6 +299,31 @@ export default function GroupEditScreen({ navigation, route }: Props) {
       return;
     }
     navigation.popToTop();
+  };
+
+  const leaveGroup = async () => {
+    if (!existing || busyRef.current) return;
+    busyRef.current = true;
+    const ok = await confirmAsync(
+      `Leave "${existing.name}"?`,
+      "You stop getting the others' changes and they stop getting yours. Your copy stays on this phone as an ordinary group, and expenses that name you stay in the group for everyone else.",
+      { confirmText: 'Leave group', destructive: true },
+    );
+    if (!ok) {
+      busyRef.current = false;
+      return;
+    }
+    setLeaving(true);
+    try {
+      await sync.leaveGroup(existing.id);
+    } catch (e) {
+      busyRef.current = false;
+      setLeaving(false);
+      showAlert("Couldn't leave the group", syncErrorText(e, 'Something went wrong. Please try again.'));
+      return;
+    }
+    leavingRef.current = true;
+    navigation.popTo('Tabs', { screen: 'Groups' });
   };
 
   const blockedDelete = deleteGuard && !deleteGuard.ok ? deleteGuard.reason ?? 'Everyone must be settled up first.' : null;
@@ -331,7 +379,12 @@ export default function GroupEditScreen({ navigation, route }: Props) {
           onAddPerson={addPerson}
         />
       </ListCard>
-      {memberIds.length === 0 ? (
+      {shared ? (
+        <AppText variant="caption" style={styles.hint}>
+          This group is shared, so members can't be removed here: each person leaves it from their own phone. You can
+          still add people.
+        </AppText>
+      ) : memberIds.length === 0 ? (
         <AppText variant="caption" style={styles.hint}>
           {candidates.length > 0
             ? 'Pick the friends you share costs with, or add a new person. You can change this later.'
@@ -367,11 +420,36 @@ export default function GroupEditScreen({ navigation, route }: Props) {
               label="Archive group"
               value={archived}
               onValueChange={setArchived}
-              description="Hides the group from your Groups list. Balances still count, and you can unarchive it any time."
+              description={
+                shared
+                  ? 'Hides the group from the Groups list of everyone in it. Balances still count, and anyone can unarchive it.'
+                  : 'Hides the group from your Groups list. Balances still count, and you can unarchive it any time.'
+              }
             />
           </View>
         ) : null}
       </ListCard>
+
+      {existing && shared ? (
+        <>
+          <SectionHeader title="Leave group" />
+          <Card style={styles.dangerCard}>
+            <AppText variant="caption">
+              Stops sharing this group with you. Your copy stays on this phone as an ordinary group; the others keep the
+              shared one.
+            </AppText>
+            <Button
+              title="Leave group"
+              icon="exit-outline"
+              variant="outline"
+              onPress={() => void leaveGroup()}
+              loading={leaving}
+              fullWidth
+              testID="group-leave"
+            />
+          </Card>
+        </>
+      ) : null}
 
       {existing ? (
         <>
@@ -387,7 +465,9 @@ export default function GroupEditScreen({ navigation, route }: Props) {
               />
             ) : (
               <AppText variant="caption">
-                Deletes the group and all of its expenses and payments for everyone. This can't be undone.
+                {shared
+                  ? "Deletes the group and all of its expenses and payments for everyone, on every member's phone. This can't be undone."
+                  : "Deletes the group and all of its expenses and payments for everyone. This can't be undone."}
               </AppText>
             )}
             <Button

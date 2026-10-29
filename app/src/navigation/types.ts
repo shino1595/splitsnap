@@ -58,6 +58,10 @@ export type RootStackParamList = {
   ImportSplitwise: undefined;
   /** Roadmap 05 step A1: checks sign-in and a live update against the shared-groups server. */
   SyncTest: undefined;
+  /** Shares a local group (name, what sharing means, join code), or shows a shared group's code and members. */
+  ShareGroup: { groupId: string };
+  /** Join a shared group with a code and pick "That's me" (Groups tab). */
+  JoinGroup: undefined;
 };
 
 export type RootScreenProps<T extends keyof RootStackParamList> = NativeStackScreenProps<RootStackParamList, T>;

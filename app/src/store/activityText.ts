@@ -1,6 +1,7 @@
 // Sentences for the Activity feed. Pure; names come from the state at the time of the
 // change, so a later rename does not rewrite history.
-import type { AppState, Expense, Group, ID, Payment, Person, Settings } from '../types';
+import { ME_ID } from '../types';
+import type { Activity, AppState, Expense, Group, ID, Payment, Person, Settings } from '../types';
 import { formatMoney } from '../lib/money';
 import { personName } from './selectors';
 
@@ -138,4 +139,50 @@ export function settingsUpdatedText(state: AppState, actorId: ID, before: Settin
 
 export function commentAddedText(state: AppState, actorId: ID, e: Pick<Expense, 'description'>): string {
   return `${subject(state, actorId)} commented on "${e.description}".`;
+}
+
+/** Someone this phone can name ('Unknown' would read worse than the sender's own summary). */
+const known = (state: AppState, id: ID | undefined): id is ID => id !== undefined && (id === ME_ID || !!state.people[id]);
+
+/**
+ * An entry from another phone (docs/SYNC_DESIGN.md §6), re-worded from its ids and the current
+ * state so "you" is whoever uses this phone. Other types, or entries whose expense, payment,
+ * group or people are not here, keep the sender's neutral summary.
+ */
+export function rewordRemoteActivity(state: AppState, a: Activity): string {
+  const actor = a.actorId;
+  if (!known(state, actor)) return a.summary;
+  switch (a.type) {
+    case 'expense_added':
+    case 'expense_updated':
+    case 'expense_deleted':
+    case 'expense_restored':
+    case 'comment_added': {
+      const e = a.expenseId !== undefined ? state.expenses[a.expenseId] : undefined;
+      if (!e) return a.summary;
+      if (a.type === 'expense_added') return expenseAddedText(state, actor, e);
+      if (a.type === 'expense_updated') return expenseUpdatedText(state, actor, e);
+      if (a.type === 'expense_deleted') return expenseDeletedText(state, actor, e);
+      if (a.type === 'expense_restored') return expenseRestoredText(state, actor, e);
+      return commentAddedText(state, actor, e);
+    }
+    case 'payment_added':
+    case 'payment_deleted': {
+      const p = a.paymentId !== undefined ? state.payments[a.paymentId] : undefined;
+      if (!p || !known(state, p.fromId) || !known(state, p.toId)) return a.summary;
+      return a.type === 'payment_added' ? paymentAddedText(state, actor, p) : paymentDeletedText(state, actor, p);
+    }
+    case 'member_added':
+    case 'member_removed': {
+      const g = a.groupId ? state.groups[a.groupId] : undefined;
+      if (!g || !known(state, a.personId)) return a.summary;
+      return a.type === 'member_added' ? memberAddedText(state, actor, a.personId, g) : memberRemovedText(state, actor, a.personId, g);
+    }
+    case 'group_created': {
+      const g = a.groupId ? state.groups[a.groupId] : undefined;
+      return g ? groupCreatedText(state, actor, g) : a.summary;
+    }
+    default:
+      return a.summary;
+  }
 }

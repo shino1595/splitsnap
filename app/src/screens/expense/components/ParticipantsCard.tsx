@@ -21,6 +21,8 @@ export interface ParticipantsCardProps {
   onChangeGroup: (groupId: ID | null) => void;
   onAddFriend: () => void;
   error?: string | null;
+  /** Set when the group can't change (an expense of a shared group); the one-line reason. */
+  groupLock?: string | null;
 }
 
 function GroupAvatar({ group, size = 36 }: { group: Group; size?: number }) {
@@ -35,6 +37,7 @@ export function ParticipantsCard({
   onChangeGroup,
   onAddFriend,
   error,
+  groupLock = null,
 }: ParticipantsCardProps) {
   const [pickingPeople, setPickingPeople] = React.useState(false);
   const [pickingGroup, setPickingGroup] = React.useState(false);
@@ -58,6 +61,7 @@ export function ParticipantsCard({
   }, [state, group]);
 
   const remove = (id: ID) => onChangeParticipants(participantIds.filter((x) => x !== id));
+  const groupLabel = group ? group.name : groupId ? 'Deleted group' : 'No group';
 
   return (
     <Card padded={false}>
@@ -105,24 +109,40 @@ export function ParticipantsCard({
 
       <Divider />
 
-      <Pressable
-        onPress={() => setPickingGroup(true)}
-        accessibilityRole="button"
-        accessibilityLabel={`Group: ${group ? group.name : groupId ? 'Deleted group' : 'No group'}. Change group`}
-        style={({ pressed }) => [styles.groupRow, pressed && styles.pressed]}
-      >
-        {group ? <GroupAvatar group={group} /> : <IconBadge icon="people-outline" size={36} />}
-        <View style={styles.groupText}>
-          <AppText variant="caption">Group</AppText>
-          <AppText weight="semibold" numberOfLines={1}>
-            {group ? group.name : groupId ? 'Deleted group' : 'No group'}
-          </AppText>
+      {groupLock ? (
+        <View style={styles.groupRow} accessible accessibilityLabel={`Group: ${groupLabel}. ${groupLock}`} testID="expense-group-locked">
+          {group ? <GroupAvatar group={group} /> : <IconBadge icon="people-outline" size={36} />}
+          <View style={styles.groupText}>
+            <AppText variant="caption">Group</AppText>
+            <AppText weight="semibold" numberOfLines={1}>
+              {groupLabel}
+            </AppText>
+            <AppText variant="caption" numberOfLines={2}>
+              {groupLock}
+            </AppText>
+          </View>
+          <Icon name="lock-closed-outline" size={18} color={colors.textFaint} />
         </View>
-        <AppText variant="label" color={colors.primaryDark}>
-          Change
-        </AppText>
-        <Icon name="chevron-forward" size={18} color={colors.textFaint} />
-      </Pressable>
+      ) : (
+        <Pressable
+          onPress={() => setPickingGroup(true)}
+          accessibilityRole="button"
+          accessibilityLabel={`Group: ${groupLabel}. Change group`}
+          style={({ pressed }) => [styles.groupRow, pressed && styles.pressed]}
+        >
+          {group ? <GroupAvatar group={group} /> : <IconBadge icon="people-outline" size={36} />}
+          <View style={styles.groupText}>
+            <AppText variant="caption">Group</AppText>
+            <AppText weight="semibold" numberOfLines={1}>
+              {groupLabel}
+            </AppText>
+          </View>
+          <AppText variant="label" color={colors.primaryDark}>
+            Change
+          </AppText>
+          <Icon name="chevron-forward" size={18} color={colors.textFaint} />
+        </Pressable>
+      )}
 
       <FriendPickerSheet
         visible={pickingPeople}
@@ -133,7 +153,7 @@ export function ParticipantsCard({
         onAddFriend={onAddFriend}
       />
       <OptionPicker
-        visible={pickingGroup}
+        visible={pickingGroup && !groupLock}
         onClose={() => setPickingGroup(false)}
         title="Choose a group"
         options={groupOptions}

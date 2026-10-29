@@ -13,8 +13,10 @@ import {
 } from '../../store/selectors';
 import { buildCsv } from '../../lib/csv';
 import { todayISO } from '../../lib/dates';
+import { useSync } from '../../sync/SyncProvider';
 import { colors, spacing, themed } from '../../theme';
-import { Banner, EmptyState, Fab, IconButton, Screen, shareCsv, showAlert } from '../../ui';
+import { Banner, Chip, EmptyState, Fab, Icon, IconButton, Screen, shareCsv, showAlert } from '../../ui';
+import { sharedSummary } from '../sharing/sharingLogic';
 import { GroupHeader } from './components/GroupHeader';
 import type { GroupAction } from './components/GroupHeader';
 import { MissingGroup } from './components/MissingGroup';
@@ -29,6 +31,7 @@ export default function GroupDetailScreen({ navigation, route }: Props) {
   const state = useAppState();
   const actions = useActions();
   const draft = useDraft();
+  const sync = useSync();
   const group = state.groups[groupId];
 
   const data = React.useMemo(() => {
@@ -87,9 +90,18 @@ export default function GroupDetailScreen({ navigation, route }: Props) {
   const addExpense = () => navigation.navigate('AddExpense', { groupId });
   const editGroup = () => navigation.navigate('GroupEdit', { groupId });
   const openBalances = () => navigation.navigate('GroupBalances', { groupId });
+  const openShare = () => navigation.navigate('ShareGroup', { groupId });
+
+  // Sharing controls only exist when this build has a shared-groups server.
+  const sharing = sync.status !== 'off';
+  const shared = sharing && !!sync.shared(groupId);
+  const onSplitSnap = shared ? group.memberIds.filter((id) => sync.isOnSplitSnap(groupId, id)).length : 0;
 
   const headerActions: GroupAction[] = [
     { key: 'settle', icon: 'cash-outline', label: 'Settle up', primary: true, onPress: () => navigation.navigate('SettleUp', { groupId }) },
+    ...(sharing && !shared
+      ? [{ key: 'share', icon: 'share-social-outline', label: 'Share', accessibilityLabel: 'Share this group with its members', onPress: openShare }]
+      : []),
     { key: 'balances', icon: 'swap-horizontal', label: 'Balances', onPress: openBalances },
     { key: 'totals', icon: 'bar-chart-outline', label: 'Totals', onPress: () => navigation.navigate('GroupTotals', { groupId }) },
     { key: 'export', icon: 'share-outline', label: 'Export CSV', accessibilityLabel: 'Export expenses as CSV', onPress: () => void exportCsv() },
@@ -111,6 +123,19 @@ export default function GroupDetailScreen({ navigation, route }: Props) {
         onPressMembers={editGroup}
         onPressAllBalances={openBalances}
       />
+
+      {shared ? (
+        <Chip
+          small
+          label={sharedSummary(onSplitSnap, group.memberIds.length)}
+          left={<Icon name="cloud-done-outline" size={16} color={colors.primaryDark} style={styles.chipIcon} />}
+          right={<Icon name="chevron-forward" size={14} color={colors.textFaint} />}
+          onPress={openShare}
+          accessibilityLabel={`${sharedSummary(onSplitSnap, group.memberIds.length)}. Show the join code and members`}
+          style={styles.sharedChip}
+          testID="group-shared"
+        />
+      ) : null}
 
       {group.archived ? (
         <Banner
@@ -160,4 +185,7 @@ export default function GroupDetailScreen({ navigation, route }: Props) {
 const styles = themed(() => StyleSheet.create({
   banner: { marginTop: spacing.md },
   empty: { paddingVertical: spacing.xxl },
+  sharedChip: { marginTop: spacing.md },
+  // 3 px chip inset + 7 lines the icon up with the 10 px padding on the right.
+  chipIcon: { marginLeft: spacing.sm - 1 },
 }));

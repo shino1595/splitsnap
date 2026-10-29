@@ -9,6 +9,7 @@ import { todayISO } from '../lib/dates';
 import { appReducer, buildExpense, validatePaymentInput } from './reducer';
 import type { AppAction } from './reducer';
 import type { ImportPlan } from '../lib/splitwiseImport';
+import type { LocalBatch } from '../sync/types';
 import { canDeleteGroup, canRemoveFriend, canRemoveGroupMember } from './selectors';
 import { createDemoState, createEmptyState } from './seed';
 import { loadState, saveState } from './persistence';
@@ -48,6 +49,18 @@ export interface StoreActions {
   resetToDemo(): void;
   /** Empty state with just ME_ID (your profile and settings are kept). */
   clearAllData(): void;
+  /** Changes from a shared group's server (sync engine only); logs no activity of its own. */
+  applyRemote(batch: LocalBatch): void;
+}
+
+/** Called after every dispatch that changed the state, with the action that changed it. */
+export type StoreListener = (prev: AppState, next: AppState, action: AppAction) => void;
+
+/** For the sync engine: the latest state outside render, and every change as it happens. */
+export interface StoreInternals {
+  getState(): AppState;
+  /** Returns the unsubscribe function. */
+  subscribe(listener: StoreListener): () => void;
 }
 
 const SAVE_DELAY_MS = 300;
@@ -55,6 +68,7 @@ const SAVE_DELAY_MS = 300;
 const StateContext = React.createContext<AppState | null>(null);
 const ReadyContext = React.createContext<boolean>(false);
 const ActionsContext = React.createContext<StoreActions | null>(null);
+const InternalsContext = React.createContext<StoreInternals | null>(null);
 
 const nowISO = (): string => new Date().toISOString();
 
@@ -75,12 +89,22 @@ export function AppStoreProvider(props: { children: React.ReactNode }): React.JS
   const stateRef = React.useRef(state);
   const readyRef = React.useRef(false);
   const savedRef = React.useRef<AppState | null>(null);
+  // Replaced, never mutated, so unsubscribing inside a listener can't disturb the loop below.
+  const listenersRef = React.useRef<StoreListener[]>([]);
 
   const dispatch = React.useCallback((action: AppAction): void => {
-    const next = appReducer(stateRef.current, action);
-    if (next !== stateRef.current) {
+    const prev = stateRef.current;
+    const next = appReducer(prev, action);
+    if (next !== prev) {
       stateRef.current = next;
       setState(next);
+      for (const listener of listenersRef.current) {
+        try {
+          listener(prev, next, action);
+        } catch {
+          // Sync must never break a local action; the engine catches up on its next pull.
+        }
+      }
     }
   }, []);
 
@@ -249,14 +273,33 @@ export function AppStoreProvider(props: { children: React.ReactNode }): React.JS
       clearAllData() {
         dispatch({ type: 'state/clear', at: nowISO() });
       },
+
+      applyRemote(batch) {
+        dispatch({ type: 'sync/applyRemote', batch, at: nowISO() });
+      },
     };
   }, [dispatch, processDueRecurring]);
 
+  const internals = React.useMemo<StoreInternals>(
+    () => ({
+      getState: () => stateRef.current,
+      subscribe(listener) {
+        listenersRef.current = [...listenersRef.current, listener];
+        return () => {
+          listenersRef.current = listenersRef.current.filter((l) => l !== listener);
+        };
+      },
+    }),
+    [],
+  );
+
   return (
     <ReadyContext.Provider value={ready}>
-      <ActionsContext.Provider value={actions}>
-        <StateContext.Provider value={state}>{props.children}</StateContext.Provider>
-      </ActionsContext.Provider>
+      <InternalsContext.Provider value={internals}>
+        <ActionsContext.Provider value={actions}>
+          <StateContext.Provider value={state}>{props.children}</StateContext.Provider>
+        </ActionsContext.Provider>
+      </InternalsContext.Provider>
     </ReadyContext.Provider>
   );
 }
@@ -276,4 +319,11 @@ export function useActions(): StoreActions {
   const actions = React.useContext(ActionsContext);
   if (!actions) throw new Error('useActions must be used inside <AppStoreProvider>.');
   return actions;
+}
+
+/** Sync engine only: listeners run inside dispatch, after the new state is current. */
+export function useStoreInternals(): StoreInternals {
+  const internals = React.useContext(InternalsContext);
+  if (!internals) throw new Error('useStoreInternals must be used inside <AppStoreProvider>.');
+  return internals;
 }
