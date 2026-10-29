@@ -16,8 +16,10 @@ sees it within a second or two, with "Aarav added *Dinner* · ₹1,460" in Activ
 
 - **Data stays on each phone.** Every phone keeps its own copy (AsyncStorage). There's no server and
   no notion of "the same group on two phones".
-- **Delivery already works.** Your published app opens on any phone with Expo Go (App Store or
-  Play Store, SDK 58).
+- **Delivery works, for signed-in owners only.** Your published app opens in Expo Go (App Store or
+  Play Store, SDK 58) only when Expo Go is signed in to an Expo account that owns the project or
+  belongs to its organization (Expo's rule since 2026-05-12). See "Expo Go access for friends"
+  below.
 
 Both points shape the plan: the app needs a shared database, and a way to reach friends' phones
 that doesn't mean re-sending QR codes.
@@ -111,6 +113,28 @@ It uses the EAS channel `main`, which the publish workflow now creates and point
 | Data transfer | 5 GB/month |
 | **Pausing** | Paused after **1 week without activity**. You restore it from the dashboard. |
 | **Backups** | Not downloadable on the free plan. Every phone still keeps its own local copy. |
+
+## Expo Go access for friends (found 2026-10-29, needs your approval before A3)
+
+Since 2026-05-12, Expo Go only loads published projects owned by the signed-in Expo account or by
+an organization that account belongs to ([Expo changelog](https://expo.dev/changelog/expo-go-loading-changes-may-2026)).
+A signed-out Expo Go is refused. On Android the only message is "Failed to download remote
+update". Confirmed on 2026-10-29: a fresh Android Expo Go failed, then opened SplitSnap after
+signing in with your Expo account.
+
+Proposed (all free: the Expo Free plan has unlimited members):
+
+1. You create a free Expo organization and transfer the SplitSnap project to it on expo.dev. The
+   project ID stays the same. If the fixed link or the GitHub publish needs a change after the
+   move, I fix it.
+2. Each friend creates a free Expo account. You invite them to the organization with the
+   lowest role that still opens projects in Expo Go. We check which role that is with the first
+   friend.
+3. Each friend signs in to Expo Go once, then opens the fixed link.
+
+Not chosen:
+- An Android APK: Android only, and it uses the free monthly build quota.
+- TestFlight for iPhone friends: needs a paid Apple developer account.
 
 ## Known limits of Option A (deliberate, for a test)
 
