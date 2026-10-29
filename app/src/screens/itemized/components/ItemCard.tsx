@@ -4,7 +4,7 @@ import type { BillItem, CurrencyCode, ID, Minor } from '../../../types';
 import { assignEqually, setPortions, togglePerson } from '../../../lib/itemized';
 import { formatMoney, minorToInputText } from '../../../lib/money';
 import { colors, radius, spacing, themed } from '../../../theme';
-import { AppText, Avatar, Button, Card, Chip, confirmAsync, Icon, IconButton, Stepper } from '../../../ui';
+import { AppText, Avatar, Button, Card, confirmAsync, Icon, IconButton, Stepper } from '../../../ui';
 import {
   applyItemFields,
   hasUnequalPortions,
@@ -17,6 +17,7 @@ import {
 } from '../itemizedEditor';
 import type { ItemFields as ItemFieldValues } from '../itemizedEditor';
 import { ItemFields } from './ItemFields';
+import { SharerChips } from './SharerChips';
 
 /** A person as the itemized screens show them. */
 export interface PersonView {
@@ -149,34 +150,16 @@ function ItemCardInner({
         </Pressable>
       )}
 
-      <View style={styles.chips}>
-        <Chip
-          label="Everyone"
-          selected={everyone}
-          onPress={() => onChange(assignEqually(item, participantIds))}
-          accessibilityLabel={`Split ${title} between everyone`}
-        />
-        {people.map((p) => {
-          const on = sharers.indexOf(p.id) >= 0;
-          return (
-            <Chip
-              key={p.id}
-              label={p.label}
-              selected={on}
-              onPress={() => onChange(togglePerson(item, p.id))}
-              left={<Avatar name={p.avatarName} color={p.color} size={28} />}
-              accessibilityLabel={`${p.name} ${on ? 'shared' : 'did not share'} ${title}. Tap to ${on ? 'remove' : 'add'}`}
-              testID={`item-${item.id}-person-${p.id}`}
-            />
-          );
-        })}
-        <Chip
-          label="Clear"
-          onPress={() => onChange(assignEqually(item, []))}
-          disabled={unassigned}
-          accessibilityLabel={`Clear everyone from ${title}`}
-        />
-      </View>
+      <SharerChips
+        people={people}
+        selected={sharers}
+        everyone={everyone}
+        subject={title}
+        onEveryone={() => onChange(assignEqually(item, participantIds))}
+        onToggle={(id) => onChange(togglePerson(item, id))}
+        onClear={() => onChange(assignEqually(item, []))}
+        testIDPrefix={`item-${item.id}`}
+      />
 
       {showPortions ? (
         <View style={styles.portions}>
@@ -256,7 +239,6 @@ const styles = themed((colors) => StyleSheet.create({
   },
   editor: { gap: spacing.sm },
   editorActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   portions: {
     gap: spacing.sm,
     padding: spacing.md,

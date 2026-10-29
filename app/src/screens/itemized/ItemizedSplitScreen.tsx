@@ -209,7 +209,7 @@ export default function ItemizedSplitScreen({ navigation }: Props) {
         ))}
         <AddItemCard
           currency={currency}
-          shareWith={participantIds}
+          participants={participantViews}
           onAdd={addItem}
           // With only you on the expense the first job is adding people, so the keyboard waits.
           autoFocus={bill.items.length === 0 && !bill.scanned && !onlyMe}

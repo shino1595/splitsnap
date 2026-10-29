@@ -200,7 +200,10 @@ export function parseItemFields(fields: ItemFields, currency: CurrencyCode): { v
   return { value: { name, quantity, amount }, error: null };
 }
 
-/** A new item shared equally by `shareWith` (everyone, like scanned items). */
+/** itemFromFields' error when nobody is ticked. Ticking someone clears it; other errors stay. */
+export const NO_SHARERS_ERROR = 'Pick who shared it';
+
+/** A new item shared equally by `shareWith` (the people ticked in the add-item card). */
 export function itemFromFields(
   fields: ItemFields,
   currency: CurrencyCode,
@@ -208,9 +211,28 @@ export function itemFromFields(
 ): { item: BillItem | null; error: string | null } {
   const { value, error } = parseItemFields(fields, currency);
   if (!value) return { item: null, error };
+  if (shareWith.length === 0) return { item: null, error: NO_SHARERS_ERROR };
   const shares: Record<ID, number> = {};
   for (const id of shareWith) shares[id] = 1;
   return { item: newBillItem(value.name, value.amount, value.quantity, shares), error: null };
+}
+
+/**
+ * Who the add-item card gives the next item to, in the expense's order. `picked` is null for
+ * "Everyone", which follows the expense, so a person added meanwhile is included. People
+ * picked earlier who have left the expense are dropped.
+ */
+export function newItemSharers(picked: ID[] | null, participantIds: ID[]): ID[] {
+  if (picked === null) return participantIds.slice();
+  return participantIds.filter((id) => picked.indexOf(id) >= 0);
+}
+
+/** Ticks or unticks a person in the add-item card. Ticking everyone goes back to "Everyone" (null). */
+export function toggleNewItemSharer(picked: ID[] | null, participantIds: ID[], personId: ID): ID[] | null {
+  const current = newItemSharers(picked, participantIds);
+  const next = current.indexOf(personId) >= 0 ? current.filter((id) => id !== personId) : current.concat(personId);
+  const all = participantIds.length > 0 && participantIds.every((id) => next.indexOf(id) >= 0);
+  return all ? null : newItemSharers(next, participantIds);
 }
 
 /** Applies edited fields to an item, keeping who shared it. */

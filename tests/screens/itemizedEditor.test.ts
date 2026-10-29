@@ -16,6 +16,8 @@ import {
   itemShares,
   itemSplitCaption,
   listNames,
+  newItemSharers,
+  NO_SHARERS_ERROR,
   parsePercentInput,
   parseQuantity,
   percentFromLabel,
@@ -25,6 +27,7 @@ import {
   portionsHint,
   removeItemFrom,
   sameBill,
+  toggleNewItemSharer,
   unitPriceCaption,
   updateItemIn,
 } from '../../app/src/screens/itemized/itemizedEditor';
@@ -175,12 +178,62 @@ describe('itemizedEditor: item entry', () => {
     expect(item!.shares).toEqual({ A: 1, B: 1, C: 1, D: 1 });
   });
 
+  it('creates a manual item shared by the people ticked in the add-item card', () => {
+    let picked = toggleNewItemSharer(null, PEOPLE, B);
+    picked = toggleNewItemSharer(picked, PEOPLE, D);
+    const { item, error } = itemFromFields({ name: 'Butter Chicken', qty: '1', amount: '420' }, 'INR', newItemSharers(picked, PEOPLE));
+    expect(error).toBeNull();
+    expect(item!.shares).toEqual({ A: 1, C: 1 });
+    expect(itemSplitCaption(item!, 'INR', NAMES).text).toBe('₹210.00 each · 2 people');
+  });
+
+  it('refuses a manual item nobody shared, after the field checks', () => {
+    expect(itemFromFields({ name: 'Tea', qty: '1', amount: '10' }, 'INR', [])).toEqual({ item: null, error: 'Pick who shared it' });
+    expect(NO_SHARERS_ERROR).toBe('Pick who shared it');
+    expect(itemFromFields({ name: '', qty: '1', amount: '10' }, 'INR', []).error).toBe('Enter the item name');
+    expect(itemFromFields({ name: 'Tea', qty: '1', amount: '' }, 'INR', []).error).toBe('Enter the price');
+  });
+
   it('explains invalid item fields', () => {
     expect(itemFromFields({ name: '', qty: '1', amount: '10' }, 'INR', PEOPLE).error).toBe('Enter the item name');
     expect(itemFromFields({ name: 'Tea', qty: 'x', amount: '10' }, 'INR', PEOPLE).error).toBe('Quantity must be a whole number from 1 to 999');
     expect(itemFromFields({ name: 'Tea', qty: '1', amount: '' }, 'INR', PEOPLE).error).toBe('Enter the price');
     expect(itemFromFields({ name: 'Tea', qty: '1', amount: 'abc' }, 'INR', PEOPLE).error).toBe('Enter a valid price, e.g. 360 or 360.50');
     expect(itemFromFields({ name: 'Tea', qty: '1', amount: '0' }, 'INR', PEOPLE).error).toBe('The price must be more than zero');
+  });
+
+  it('starts the add-item card on everyone, following the expense', () => {
+    const shared = newItemSharers(null, PEOPLE);
+    expect(shared).toEqual(PEOPLE);
+    shared.push('E');
+    expect(PEOPLE).toEqual([A, B, C, D]); // a copy, not the expense's own list
+    expect(newItemSharers(null, [...PEOPLE, 'E'])).toEqual([A, B, C, D, 'E']);
+  });
+
+  it('keeps picked people in the expense order and drops anyone no longer on it', () => {
+    expect(newItemSharers([D, A], PEOPLE)).toEqual([A, D]);
+    expect(newItemSharers([A, 'gone'], PEOPLE)).toEqual([A]);
+    expect(newItemSharers(['gone'], PEOPLE)).toEqual([]);
+    expect(newItemSharers([], PEOPLE)).toEqual([]);
+  });
+
+  it('ticks and unticks people in the add-item card', () => {
+    const withoutB = toggleNewItemSharer(null, PEOPLE, B);
+    expect(withoutB).toEqual([A, C, D]);
+    const onlyA = toggleNewItemSharer(toggleNewItemSharer(withoutB, PEOPLE, C), PEOPLE, D);
+    expect(onlyA).toEqual([A]);
+    expect(toggleNewItemSharer(onlyA, PEOPLE, A)).toEqual([]);
+    // "Clear" empties the pick; one tap then gives an item only Chirag had.
+    expect(toggleNewItemSharer([], PEOPLE, C)).toEqual([C]);
+    expect(toggleNewItemSharer([D], PEOPLE, B)).toEqual([B, D]);
+  });
+
+  it('goes back to "Everyone" once everyone is ticked again', () => {
+    expect(toggleNewItemSharer([A, C, D], PEOPLE, B)).toBeNull();
+    expect(toggleNewItemSharer(null, [A], A)).toEqual([]);
+    expect(toggleNewItemSharer([], [A], A)).toBeNull();
+    // A person added to the expense later is included again once "Everyone" is back.
+    expect(newItemSharers(toggleNewItemSharer([A, C, D], PEOPLE, B), [...PEOPLE, 'E'])).toEqual([A, B, C, D, 'E']);
   });
 
   it('edits an item and keeps who shared it', () => {

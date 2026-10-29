@@ -561,7 +561,10 @@ chips (Avatar + first name) — tap toggles that person on the item; chips "Ever
 A small "Split unequally" link reveals a Stepper per selected person (portions, e.g. A ate 2 of
 6 naan → A:2, B:1, C:2, D:1). Under the chips: '₹90.00 each' or per-person amounts. Unassigned
 items are highlighted (warning border) with text 'Tap who shared this'.
-"+ Add item" (name, qty, amount) for manual entry; "Tax & charges" section listing charges
+"+ Add item" for manual entry: name, qty, amount and a "Shared by" chip row (Everyone / each
+participant / Clear, the item cards' chips; hidden when only you are on the expense). It starts
+on Everyone and goes back to Everyone after each add; with nobody ticked, Add says 'Pick who
+shared it' (field errors first). The cursor returns to the name for the next item. "Tax & charges" section listing charges
 (label, amount, allocation toggle Proportional / Equal, delete) and "+ Add tax / tip /
 discount" (kind chips: Tax %, Service %, Tip, Discount, Other; % kinds take a percentage of the
 items subtotal and store the computed amount).

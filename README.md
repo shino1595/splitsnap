@@ -147,7 +147,9 @@ Aarav and Chirag ate 2 naan each and Bhavna and Diya 1 each (A:2, B:1, C:2, D:1)
 splits as ₹120 / ₹60 / ₹120 / ₹60.
 
 **Other options:**
-- **Add item:** type in a bill by hand.
+- **Add item:** type in a bill by hand. Under the price, tick who shared the item before you
+  tap **Add item** (it starts on **Everyone** each time; **Clear** then one name for a dish only
+  one person had), so you don't have to scroll back up.
 - **Add tax, tip or discount:** Tax %, Service %, Tip, Discount or Other. Each charge can be
   shared **Proportionally** or **Equally**.
 - **Split the unassigned items among everyone:** shares out items nobody has been ticked on.
