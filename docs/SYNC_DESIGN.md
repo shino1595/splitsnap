@@ -88,6 +88,16 @@ signed-in user id, display name, per shared group `{ myMemberId, joinCode, membe
   shared group missing from the app state at start is pulled again from the beginning.
 - **Live:** one Realtime channel with Postgres Changes on the six tables. Row security means each
   phone only receives rows of its groups. Each event goes through the same apply path.
+  - **When the channel counts as live:** only after the server's `postgres_changes` system
+    message with status `ok` (or about 10 s after `SUBSCRIBED` without one, for a server that
+    never sends it). A system `error` is handled like a channel error: drop, retry with backoff.
+    `realtime.setAuth()` runs before every join, so the join carries the user's token. Without
+    it the server joins as the anon role: a filtered binding is refused with a system error, and
+    an unfiltered one (like this channel) can be accepted but then delivers no rows.
+  - **Why:** `SUBSCRIBED` comes from the join reply. On a cold project the change stream starts
+    seconds later, and changes made in between are never delivered. Going live triggers the
+    pull, which covers everything before that point. If the confirmation comes after the 10 s
+    fallback, the channel reports live again, so the engine pulls once more.
 - **Apply** (`sync/applyRemote`, pure, in the reducer): rewrite ids (§2), create missing people,
   upsert by id. **Conflicts:** an entity with a pending outbox key keeps the local version (it
   is about to be sent, and later saves win). Otherwise the server row replaces the local one.

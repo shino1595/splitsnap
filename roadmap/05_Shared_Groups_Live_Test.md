@@ -1,8 +1,10 @@
 # Plan: shared groups for a live test with friends (Option A), and how Option B builds on it
 
-Status: **Option A approved** (2026-10-28). **A0 in progress:** setup script `supabase/setup.sql`
-(start-over script `supabase/teardown.sql`) and the fixed app link are ready; waiting for your
-Supabase project (checklist below). A1–A3 not started.
+Status: **Option A approved** (2026-10-28). **A0 done:** Supabase project set up with
+`supabase/setup.sql`, fixed app link live. **A1 passed** on the iPhone on 2026-10-29: the first
+run of the connection test missed the round trip on a cold server, the second passed. **Cold-start
+fix shipped:** live updates now count as connected only once the server confirms them. **A2
+pushed** (04b3253). **Next:** your two-phone test with a throwaway group, then A3.
 
 ## Goal
 

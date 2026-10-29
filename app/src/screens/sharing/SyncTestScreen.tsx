@@ -16,6 +16,13 @@ interface Step {
   detail?: string;
 }
 
+/** A Realtime 'system' message; the postgres_changes one says whether the change stream started. */
+interface SystemMessage {
+  extension?: string;
+  status?: string;
+  message?: string;
+}
+
 const LABELS = [
   'Load the Supabase library',
   'Sign in anonymously',
@@ -24,6 +31,7 @@ const LABELS = [
   'Round trip: change → live update',
 ];
 
+const READY_TIMEOUT_MS = 15000;
 const ROUND_TRIP_TIMEOUT_MS = 15000;
 
 function message(error: unknown): string {
@@ -79,21 +87,50 @@ export default function SyncTestScreen(_props: RootScreenProps<'SyncTest'>) {
       index = 3;
       mark(index, 'running');
       started = Date.now();
+      // The join carries the token the socket holds when it is sent: fetch the new session's
+      // first, or the server joins as the anon role and refuses the change stream.
+      await client.realtime.setAuth();
       let onUpdate: (name: string) => void = () => undefined;
+      let onSystem: (payload: SystemMessage) => void = () => undefined;
       const channel = client
         .channel(`sync-test-${userId}`)
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${userId}` }, (payload) => {
           const row = payload.new as { display_name?: string };
           onUpdate(row.display_name || '');
-        });
+        })
+        .on('system', {}, (payload: SystemMessage) => onSystem(payload));
       cleanup = () => {
         void client.removeChannel(channel);
       };
+      // SUBSCRIBED only means the join reply came. The server starts the change stream later
+      // (seconds later on a cold project) and confirms it with a system message; a change made
+      // before that never comes back, so this step waits for both before the round trip starts.
       await new Promise<void>((resolve, reject) => {
+        let joined = false;
+        let confirmed = false;
+        const timer = setTimeout(
+          () => finish(new Error(`The server did not confirm live updates within ${READY_TIMEOUT_MS / 1000} s.`)),
+          READY_TIMEOUT_MS,
+        );
+        const finish = (error?: unknown) => {
+          clearTimeout(timer);
+          if (error) reject(error);
+          else resolve();
+        };
+        onSystem = (payload) => {
+          if (payload.extension !== 'postgres_changes') return;
+          if (payload.status === 'error') finish(new Error(`The server refused live updates: ${payload.message}`));
+          else if (payload.status === 'ok') {
+            confirmed = true;
+            if (joined) finish();
+          }
+        };
         channel.subscribe((status, error) => {
-          if (status === 'SUBSCRIBED') resolve();
-          else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-            reject(error || new Error(`Live updates: ${status}`));
+          if (status === 'SUBSCRIBED') {
+            joined = true;
+            if (confirmed) finish();
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+            finish(error || new Error(`Live updates: ${status}`));
           }
         });
       });
@@ -102,18 +139,29 @@ export default function SyncTestScreen(_props: RootScreenProps<'SyncTest'>) {
       index = 4;
       mark(index, 'running');
       const marker = `SplitSnap test ${Math.random().toString(36).slice(2, 8)}`;
-      const received = new Promise<number>((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error(`No live update within ${ROUND_TRIP_TIMEOUT_MS / 1000} s.`)), ROUND_TRIP_TIMEOUT_MS);
-        onUpdate = (name) => {
-          if (name !== marker) return;
-          clearTimeout(timer);
-          resolve(Date.now());
-        };
-      });
+      let arrived = 0;
+      let onArrived: () => void = () => undefined;
+      onUpdate = (name) => {
+        if (name !== marker) return;
+        arrived = Date.now();
+        onArrived();
+      };
       const sent = Date.now();
-      const updated = await client.from('profiles').update({ display_name: marker }).eq('id', userId);
+      // .select('id') returns the changed row: none means the server changed nothing, so no live
+      // update can come back.
+      const updated = await client.from('profiles').update({ display_name: marker }).eq('id', userId).select('id');
       if (updated.error) throw updated.error;
-      const arrived = await received;
+      if (!updated.data || updated.data.length === 0) throw new Error("The server didn't change the test profile.");
+      // The timer starts only now, so a failed save above never leaves one running.
+      if (!arrived) {
+        await new Promise<void>((resolve, reject) => {
+          const timer = setTimeout(() => reject(new Error(`No live update within ${ROUND_TRIP_TIMEOUT_MS / 1000} s.`)), ROUND_TRIP_TIMEOUT_MS);
+          onArrived = () => {
+            clearTimeout(timer);
+            resolve();
+          };
+        });
+      }
       mark(index, 'ok', `${arrived - sent} ms`);
     } catch (error) {
       console.warn('Shared groups test failed:', error);
