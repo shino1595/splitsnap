@@ -99,17 +99,17 @@ $pins = [ordered]@{
     'react-native-url-polyfill'                 = '4.0.0'
 }
 if ($Sdk -eq '58') {
-    # The real Expo project published with EAS Update (iPhone Expo Go runs SDK 58): expo@58.0.19.
+    # The real Expo project published with EAS Update (iPhone Expo Go runs SDK 58): expo@58.0.21.
     $pins['@types/react'] = '~19.3.0'
-    $pins['react-native'] = '0.88.0'
+    $pins['react-native'] = '0.88.1'
     $pins['react-native-safe-area-context'] = '~5.10.1'
     $pins['react-native-screens'] = '~4.30.0'
     $pins['expo-image-picker'] = '~58.0.10'
-    $pins['expo-image-manipulator'] = '~58.0.15'
+    $pins['expo-image-manipulator'] = '~58.0.16'
     $pins['expo-document-picker'] = '~58.0.4'
-    $pins['expo-modules-core'] = '~58.0.26'
-    $pins['expo-font'] = '~58.0.10'
-    $pins['expo'] = '~58.0.19'
+    $pins['expo-modules-core'] = '~58.0.28'
+    $pins['expo-font'] = '~58.0.11'
+    $pins['expo'] = '~58.0.21'
     $pins['@expo/vector-icons'] = '^15.0.2'
 }
 if ($Sdk -eq '54') {
