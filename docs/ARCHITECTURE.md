@@ -548,7 +548,11 @@ manually. Demo-key Banner when `settings.ocrApiKey` is empty ('Using the shared 
 add your free key in Settings for reliable scans').
 After OCR: **review list** — merchant (editable), each item row editable (name, qty, amount;
 delete), add item, charges (label, amount, kind), detected total vs computed total with a
-warning Banner if they differ, 'Show raw text' expander. Button **Continue to split** →
+warning Banner if they differ, 'Show raw text' expander. Scanned text longer than its field (item
+60, charge label 40 keeping a closing 'N%', merchant 60) is cut to fit, at a word break where
+possible, and a cut item gets the 'Please check' hint with the line as read: iPhone can't edit a
+field whose text is over its maxLength, so TextField never sets maxLength below the text's length
+(now or when it got focus). Button **Continue to split** →
 `setDraft({ split: { method:'itemized', bill: receiptToBill(receipt, draft.participantIds) },
 description: draft.description || merchant || 'Restaurant bill', category: 'food' if not set,
 receiptUri, date: receipt.date ?? draft.date, currency: receipt.currency ?? draft.currency,
@@ -556,7 +560,10 @@ amountText: minorToInputText(itemizedTotal) })` → `navigation.replace('Itemize
 
 ### 8.3 Itemized split (`ItemizedSplitScreen`) — the user's key requirement
 Header: participants as avatar chips (from `draft.participantIds`); a "Quick assign" hint.
-For each item a Card: name · qty · amount (tap to edit inline / delete), then a wrap of person
+For each item a Card: name · qty · amount (tap to edit inline / delete; edits reach the bill as
+they are typed, so Done can't drop them and Back asks before discarding; a field that is empty or
+invalid for now counts as unchanged; Cancel puts back the name, qty and price the editor opened
+with, keeping share changes; charge rows work the same way), then a wrap of person
 chips (Avatar + first name) — tap toggles that person on the item; chips "Everyone" / "Clear".
 A small "Split unequally" link reveals a Stepper per selected person (portions, e.g. A ate 2 of
 6 naan → A:2, B:1, C:2, D:1). Under the chips: '₹90.00 each' or per-person amounts. Unassigned

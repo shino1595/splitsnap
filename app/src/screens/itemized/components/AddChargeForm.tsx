@@ -4,7 +4,7 @@ import type { BillCharge, CurrencyCode, Minor } from '../../../types';
 import { currencyInfo, formatMoney, limitDecimals } from '../../../lib/money';
 import { colors, radius, spacing, themed } from '../../../theme';
 import { AppText, Button, Chip, SegmentedControl, TextField } from '../../../ui';
-import { CHARGE_PRESETS, chargeFromForm, chargePreset, evaluateChargeForm } from '../itemizedEditor';
+import { CHARGE_LABEL_MAX, CHARGE_PRESETS, chargeFromForm, chargePreset, evaluateChargeForm } from '../itemizedEditor';
 import type { ChargePresetKey } from '../itemizedEditor';
 
 export interface AddChargeFormProps {
@@ -83,7 +83,7 @@ export function AddChargeForm({ currency, itemsSubtotal, onAdd }: AddChargeFormP
           value={label}
           onChangeText={setLabel}
           placeholder={preset.defaultLabel}
-          maxLength={40}
+          maxLength={CHARGE_LABEL_MAX}
           autoCapitalize="words"
           style={styles.flex}
         />

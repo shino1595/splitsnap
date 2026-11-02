@@ -4,7 +4,7 @@ import type { ChargeKind, CurrencyCode } from '../../../types';
 import { currencyInfo, limitDecimals } from '../../../lib/money';
 import { colors, radius, spacing, themed } from '../../../theme';
 import { AppText, Button, Card, Chip, Divider, Icon, IconButton, OptionPicker, TextField } from '../../../ui';
-import { chargeKindIcon, chargeKindLabel } from '../../itemized/itemizedEditor';
+import { CHARGE_LABEL_MAX, chargeKindIcon, chargeKindLabel } from '../../itemized/itemizedEditor';
 import { CHARGE_KIND_CHOICES } from '../scanReview';
 import type { ReviewChargeRow } from '../scanReview';
 
@@ -47,7 +47,7 @@ export function ReviewCharges({ rows, currency, errors, showErrors, onChange, on
             value={row.label}
             onChangeText={(text) => onChange({ ...row, label: text })}
             placeholder={chargeKindLabel(row.kind)}
-            maxLength={40}
+            maxLength={CHARGE_LABEL_MAX}
             style={styles.flex}
           />
         );

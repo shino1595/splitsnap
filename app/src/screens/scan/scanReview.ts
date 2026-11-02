@@ -5,7 +5,7 @@ import type { ParsedCharge, ParsedItem, ParsedReceipt } from '../../ocr/types';
 import { isValidISODate } from '../../lib/dates';
 import { newId } from '../../lib/ids';
 import { formatMoney, minorToInputText, parseAmountInput } from '../../lib/money';
-import { chargeKindLabel, parseQuantity } from '../itemized/itemizedEditor';
+import { chargeKindLabel, clampChargeLabel, clampText, ITEM_NAME_MAX, parseQuantity } from '../itemized/itemizedEditor';
 
 // ---------- Scanning stages and errors ----------
 
@@ -151,21 +151,32 @@ export const CHARGE_KIND_CHOICES: { kind: ChargeKind; label: string }[] = (
   ['tax', 'service', 'tip', 'discount', 'roundoff', 'other'] as ChargeKind[]
 ).map((kind) => ({ kind, label: chargeKindLabel(kind) }));
 
+/** Longest restaurant name the review field takes. */
+export const MERCHANT_MAX = 60;
+
+/**
+ * The review rows for a scanned bill. Text longer than its field is cut to fit (clampText): on
+ * iPhone an over-long name could not be edited at all. A cut name gets the "Please check" hint,
+ * which shows the whole line as read.
+ */
 export function reviewFromReceipt(receipt: ParsedReceipt, currency: CurrencyCode): ReviewDraft {
   return {
-    merchant: receipt.merchant ?? '',
-    items: receipt.items.map((item) => ({
-      key: newId('row'),
-      name: item.name,
-      qty: String(item.quantity > 0 ? item.quantity : 1),
-      amount: minorToInputText(item.amount, currency),
-      confidence: item.confidence,
-      sourceLine: item.sourceLine,
-    })),
+    merchant: clampText(receipt.merchant ?? '', MERCHANT_MAX),
+    items: receipt.items.map((item) => {
+      const name = clampText(item.name, ITEM_NAME_MAX);
+      return {
+        key: newId('row'),
+        name,
+        qty: String(item.quantity > 0 ? item.quantity : 1),
+        amount: minorToInputText(item.amount, currency),
+        confidence: name === item.name ? item.confidence : Math.min(item.confidence, LOW_CONFIDENCE / 2),
+        sourceLine: item.sourceLine,
+      };
+    }),
     charges: receipt.charges.map((charge) => ({
       key: newId('row'),
       kind: charge.kind,
-      label: charge.label,
+      label: clampChargeLabel(charge.label),
       amount: minorToInputText(charge.amount, currency),
       sourceLine: charge.sourceLine,
     })),

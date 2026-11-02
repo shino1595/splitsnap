@@ -166,6 +166,33 @@ export function unitPriceCaption(item: BillItem, currency: CurrencyCode): string
 
 // ---------- Item entry ----------
 
+/** Longest item name the add / edit fields take. Scanned names are cut to fit (clampText). */
+export const ITEM_NAME_MAX = 60;
+/** Longest charge label the fields take. */
+export const CHARGE_LABEL_MAX = 40;
+
+/**
+ * `text` cut to at most `max` characters, at the last space when one falls in the second half.
+ * Scanning can join wrapped bill lines into one long name, and on iPhone a field whose text is
+ * already over its maxLength refuses every key, even backspace. Text that fits is unchanged.
+ */
+export function clampText(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const t = text.trim().replace(/\s+/g, ' ');
+  if (t.length <= max) return t;
+  const space = t.slice(0, max + 1).lastIndexOf(' ');
+  return (space >= max / 2 ? t.slice(0, space) : t.slice(0, max)).trim();
+}
+
+/** clampText for a charge label, keeping a closing rate ('… 10%'): it drives the recalculation offer. */
+export function clampChargeLabel(label: string): string {
+  if (label.length <= CHARGE_LABEL_MAX) return label;
+  const rate = /\s(\d{1,3}(?:[.,]\d{1,3})?)\s*%\s*$/.exec(label);
+  if (!rate) return clampText(label, CHARGE_LABEL_MAX);
+  const suffix = `${rate[1]}%`;
+  return `${clampText(label.slice(0, rate.index), CHARGE_LABEL_MAX - suffix.length - 1)} ${suffix}`;
+}
+
 /** '' → 1; whole numbers 1–999; anything else null. */
 export function parseQuantity(text: string): number | null {
   const t = text.trim();
@@ -233,6 +260,26 @@ export function toggleNewItemSharer(picked: ID[] | null, participantIds: ID[], p
   const next = current.indexOf(personId) >= 0 ? current.filter((id) => id !== personId) : current.concat(personId);
   const all = participantIds.length > 0 && participantIds.every((id) => next.indexOf(id) >= 0);
   return all ? null : newItemSharers(next, participantIds);
+}
+
+/**
+ * The open item editor's fields applied as they are typed: each field that is valid right now
+ * replaces the item's value, an invalid one (an emptied price) shows `opened`'s value, the item
+ * as the editor opened it, not the last keystroke. So Done never drops a new name, and a field
+ * backspaced to nothing is unchanged rather than its first letter. Returns `item` itself when
+ * nothing changes. Tapping Save still checks every field with applyItemFields.
+ */
+export function applyValidItemFields(item: BillItem, fields: ItemFields, currency: CurrencyCode, opened: BillItem = item): BillItem {
+  const name = fields.name.trim().replace(/\s+/g, ' ');
+  const quantity = parseQuantity(fields.qty);
+  const amount = fields.amount.trim() ? parseAmountInput(fields.amount, currency) : null;
+  const next = {
+    name: name || opened.name,
+    quantity: quantity ?? opened.quantity,
+    amount: amount !== null && amount > 0 ? amount : opened.amount,
+  };
+  if (next.name === item.name && next.quantity === item.quantity && next.amount === item.amount) return item;
+  return { ...item, ...next };
 }
 
 /** Applies edited fields to an item, keeping who shared it. */
@@ -394,6 +441,23 @@ export function applyChargeFields(
   if (parsed === 0) return { charge: null, error: 'The amount can’t be zero — delete the charge instead' };
   const amount = charge.kind === 'discount' ? -Math.abs(parsed) : parsed;
   return { charge: { ...charge, label, amount }, error: null };
+}
+
+/**
+ * The open charge editor's fields applied as they are typed, like applyValidItemFields: the
+ * label always, the amount while it is valid (else `opened`'s amount). Returns `charge` itself
+ * when nothing changes.
+ */
+export function applyValidChargeFields(
+  charge: BillCharge,
+  fields: { label: string; amount: string },
+  currency: CurrencyCode,
+  opened: BillCharge = charge,
+): BillCharge {
+  const checked = applyChargeFields(charge, fields, currency).charge;
+  const label = checked ? checked.label : fields.label.trim().replace(/\s+/g, ' ') || chargeKindLabel(charge.kind);
+  const amount = checked ? checked.amount : opened.amount;
+  return label === charge.label && amount === charge.amount ? charge : { ...charge, label, amount };
 }
 
 // ---------- Summary ----------

@@ -7,6 +7,7 @@ import { colors, radius, spacing, themed } from '../../../theme';
 import { AppText, Avatar, Button, Card, confirmAsync, Icon, IconButton, Stepper } from '../../../ui';
 import {
   applyItemFields,
+  applyValidItemFields,
   hasUnequalPortions,
   isSharedByAll,
   itemShares,
@@ -67,6 +68,8 @@ function ItemCardInner({
   const [editing, setEditing] = React.useState(false);
   const [fields, setFields] = React.useState<ItemFieldValues>(() => fieldsOf(item, currency));
   const [error, setError] = React.useState<string | null>(null);
+  // The item as the editor opened it, for Cancel: edits reach the bill while they are typed.
+  const beforeEdit = React.useRef<BillItem | null>(null);
 
   const sharers = sharersOf(item);
   const unassigned = sharers.length === 0;
@@ -80,9 +83,19 @@ function ItemCardInner({
   for (const s of itemShares(item, amounts)) shareAmounts[s.personId] = s.amount;
 
   const startEdit = () => {
+    beforeEdit.current = item;
     setFields(fieldsOf(item, currency));
     setError(null);
     setEditing(true);
+  };
+
+  // Applied as typed, so the footer's Done, the back arrow or the keyboard's return key can't
+  // leave a new name behind in the editor.
+  const edit = (next: ItemFieldValues) => {
+    setFields(next);
+    if (error) setError(null);
+    const updated = applyValidItemFields(item, next, currency, beforeEdit.current ?? item);
+    if (updated !== item) onChange(updated);
   };
 
   const save = () => {
@@ -92,6 +105,14 @@ function ItemCardInner({
       return;
     }
     onChange(result.item);
+    setEditing(false);
+  };
+
+  const cancel = () => {
+    const before = beforeEdit.current;
+    if (before && (before.name !== item.name || before.quantity !== item.quantity || before.amount !== item.amount)) {
+      onChange({ ...item, name: before.name, quantity: before.quantity, amount: before.amount });
+    }
     setEditing(false);
   };
 
@@ -112,7 +133,7 @@ function ItemCardInner({
     <Card style={[styles.card, unassigned && styles.cardWarning]} testID={`item-card-${item.id}`}>
       {editing ? (
         <View style={styles.editor}>
-          <ItemFields value={fields} onChange={setFields} currency={currency} onSubmit={save} testIDPrefix="edit-item" />
+          <ItemFields value={fields} onChange={edit} currency={currency} onSubmit={save} autoFocus testIDPrefix="edit-item" />
           {error ? (
             <AppText variant="caption" color={colors.danger}>
               {error}
@@ -121,7 +142,7 @@ function ItemCardInner({
           <View style={styles.editorActions}>
             <IconButton icon="trash-outline" color={colors.danger} onPress={remove} accessibilityLabel={`Delete ${title}`} />
             <View style={styles.flex} />
-            <Button title="Cancel" variant="ghost" size="sm" onPress={() => setEditing(false)} />
+            <Button title="Cancel" variant="ghost" size="sm" onPress={cancel} />
             <Button title="Save" size="sm" onPress={save} />
           </View>
         </View>

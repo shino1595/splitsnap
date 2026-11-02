@@ -4,6 +4,7 @@ import type { CurrencyCode } from '../../../types';
 import { currencyInfo, limitDecimals } from '../../../lib/money';
 import { spacing, themed } from '../../../theme';
 import { TextField } from '../../../ui';
+import { ITEM_NAME_MAX } from '../itemizedEditor';
 import type { ItemFields as ItemFieldValues } from '../itemizedEditor';
 
 export interface ItemFieldsProps {
@@ -32,7 +33,7 @@ export function ItemFields({ value, onChange, currency, onSubmit, autoFocus, tes
       autoCapitalize="words"
       autoFocus={autoFocus}
       returnKeyType="next"
-      maxLength={60}
+      maxLength={ITEM_NAME_MAX}
       style={oneRow ? styles.name : undefined}
       testID={`${testIDPrefix}-name`}
     />

@@ -4,7 +4,15 @@ import type { BillCharge, CurrencyCode, ID, Minor } from '../../../types';
 import { currencyInfo, formatMoney, limitDecimals, minorToInputText } from '../../../lib/money';
 import { colors, radius, spacing, themed } from '../../../theme';
 import { AppText, Button, Chip, confirmAsync, Icon, IconButton, TextField } from '../../../ui';
-import { applyChargeFields, chargeKindIcon, chargeKindLabel, formatPercent, percentRecalculation } from '../itemizedEditor';
+import {
+  applyChargeFields,
+  applyValidChargeFields,
+  CHARGE_LABEL_MAX,
+  chargeKindIcon,
+  chargeKindLabel,
+  formatPercent,
+  percentRecalculation,
+} from '../itemizedEditor';
 
 /** A keyboard with a minus key, for round-offs and corrections. */
 const SIGNED_KEYBOARD: KeyboardTypeOptions =
@@ -26,16 +34,28 @@ function ChargeRowInner({ charge, currency, itemsSubtotal, checkPercent = true, 
   const [label, setLabel] = React.useState(charge.label);
   const [amount, setAmount] = React.useState('');
   const [error, setError] = React.useState<string | null>(null);
+  // The charge as the editor opened it, for Cancel: edits reach the bill while they are typed.
+  const beforeEdit = React.useRef<BillCharge | null>(null);
 
   const title = charge.label.trim() || chargeKindLabel(charge.kind);
   const negative = charge.amount < 0;
   const recalc = checkPercent ? percentRecalculation(charge, itemsSubtotal) : null;
 
   const startEdit = () => {
+    beforeEdit.current = charge;
     setLabel(charge.label);
     setAmount(minorToInputText(charge.amount, currency));
     setError(null);
     setEditing(true);
+  };
+
+  // Applied as typed, like the item editor, so leaving with Done can't drop the change.
+  const edit = (nextLabel: string, nextAmount: string) => {
+    setLabel(nextLabel);
+    setAmount(nextAmount);
+    if (error) setError(null);
+    const updated = applyValidChargeFields(charge, { label: nextLabel, amount: nextAmount }, currency, beforeEdit.current ?? charge);
+    if (updated !== charge) onChange(updated);
   };
 
   const save = () => {
@@ -45,6 +65,14 @@ function ChargeRowInner({ charge, currency, itemsSubtotal, checkPercent = true, 
       return;
     }
     onChange(result.charge);
+    setEditing(false);
+  };
+
+  const cancel = () => {
+    const before = beforeEdit.current;
+    if (before && (before.label !== charge.label || before.amount !== charge.amount)) {
+      onChange({ ...charge, label: before.label, amount: before.amount });
+    }
     setEditing(false);
   };
 
@@ -58,11 +86,18 @@ function ChargeRowInner({ charge, currency, itemsSubtotal, checkPercent = true, 
       {editing ? (
         <View style={styles.editor}>
           <View style={styles.fields}>
-            <TextField label="Label" value={label} onChangeText={setLabel} maxLength={40} style={styles.flex} />
+            <TextField
+              label="Label"
+              value={label}
+              onChangeText={(t) => edit(t, amount)}
+              maxLength={CHARGE_LABEL_MAX}
+              autoFocus
+              style={styles.flex}
+            />
             <TextField
               label="Amount"
               value={amount}
-              onChangeText={(t) => setAmount(limitDecimals(t, currencyInfo(currency).decimals))}
+              onChangeText={(t) => edit(label, limitDecimals(t, currencyInfo(currency).decimals))}
               keyboardType={SIGNED_KEYBOARD}
               onSubmitEditing={save}
               helper={charge.kind === 'discount' ? 'Taken off' : 'Use − to reduce'}
@@ -78,7 +113,7 @@ function ChargeRowInner({ charge, currency, itemsSubtotal, checkPercent = true, 
           ) : null}
           <View style={styles.editorActions}>
             <View style={styles.flex} />
-            <Button title="Cancel" variant="ghost" size="sm" onPress={() => setEditing(false)} />
+            <Button title="Cancel" variant="ghost" size="sm" onPress={cancel} />
             <Button title="Save" size="sm" onPress={save} />
           </View>
         </View>

@@ -4,6 +4,7 @@ import type { CurrencyCode } from '../../../types';
 import { currencyInfo, limitDecimals } from '../../../lib/money';
 import { colors, radius, spacing, themed } from '../../../theme';
 import { AppText, Button, Card, Divider, IconButton, TextField } from '../../../ui';
+import { ITEM_NAME_MAX } from '../../itemized/itemizedEditor';
 import { LOW_CONFIDENCE } from '../scanReview';
 import type { ReviewItemRow } from '../scanReview';
 
@@ -42,7 +43,7 @@ export function ReviewItems({ rows, currency, errors, showErrors, onChange, onDe
             onChangeText={(text) => onChange({ ...row, name: text })}
             placeholder="Item name"
             autoCapitalize="words"
-            maxLength={60}
+            maxLength={ITEM_NAME_MAX}
             style={styles.flex}
           />
         );
@@ -107,7 +108,8 @@ export function ReviewItems({ rows, currency, errors, showErrors, onChange, onDe
                   {error}
                 </AppText>
               ) : unsure ? (
-                <AppText variant="caption" color={colors.warning} numberOfLines={2}>
+                // Up to 4 lines: a name cut to fit (reviewFromReceipt) came from a long line.
+                <AppText variant="caption" color={colors.warning} numberOfLines={4}>
                   Please check — the bill line read “{row.sourceLine.trim()}”
                 </AppText>
               ) : null}

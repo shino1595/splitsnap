@@ -22,6 +22,7 @@ import {
   errorCodeOf,
   evaluateReview,
   foundText,
+  MERCHANT_MAX,
   ocrErrorCopy,
   persistableReceiptUri,
   retryHelps,
@@ -372,7 +373,7 @@ export default function ScanBillScreen({ navigation }: Props) {
             onChangeText={(merchant) => updateReview((r) => ({ ...r, merchant }))}
             placeholder="e.g. Punjab Grill"
             autoCapitalize="words"
-            maxLength={60}
+            maxLength={MERCHANT_MAX}
           />
         </View>
 

@@ -7,6 +7,7 @@ import {
   errorCodeOf,
   evaluateReview,
   foundText,
+  LOW_CONFIDENCE,
   mismatchText,
   ocrErrorCopy,
   persistableReceiptUri,
@@ -54,6 +55,24 @@ describe('scanReview: rows', () => {
       ['roundoff', 'Round Off', '0.50'],
     ]);
     expect(new Set(review.items.map((r) => r.key)).size).toBe(4);
+  });
+
+  it('cuts over-long scanned text to fit its field and flags the item to check', () => {
+    // Two wrapped bill lines joined into one name: on iPhone a field over its limit can't be edited.
+    const joined = 'Chicken Tikka Masala Boneless Half Plate With Extra Gravy And Butter Naan Combo Special';
+    const base = sampleReceipt();
+    base.merchant = 'The Very Long Restaurant Name Printed Across The Whole Top Of The Bill';
+    base.items[1] = { ...base.items[1], name: joined, sourceLine: `${joined} 1 420.00 420.00` };
+    base.charges[0] = { ...base.charges[0], label: 'Central Goods And Services Tax At Two Point Five' };
+    const review = reviewFromReceipt(base, 'INR');
+    expect(review.items[1].name).toBe('Chicken Tikka Masala Boneless Half Plate With Extra Gravy');
+    expect(review.items[1].name.length).toBeLessThanOrEqual(60);
+    expect(review.items[1].confidence).toBeLessThan(LOW_CONFIDENCE);
+    expect(review.items[1].sourceLine).toBe(`${joined} 1 420.00 420.00`);
+    expect(review.items[0]).toEqual({ ...review.items[0], name: 'Naan', confidence: 0.95 });
+    expect(review.merchant.length).toBeLessThanOrEqual(60);
+    expect(review.merchant).toBe('The Very Long Restaurant Name Printed Across The Whole Top');
+    expect(review.charges[0].label).toBe('Central Goods And Services Tax At Two');
   });
 
   it('round-trips an unedited receipt', () => {

@@ -95,6 +95,8 @@ export function TextField({
   inputRef,
 }: TextFieldProps) {
   const [focused, setFocused] = React.useState(false);
+  // The text's length when the field got focus: see maxLength below.
+  const focusLength = React.useRef(0);
   const borderColor = error ? colors.danger : focused ? colors.primary : colors.border;
 
   React.useEffect(() => {
@@ -126,7 +128,10 @@ export function TextField({
           keyboardType={keyboardType}
           multiline={multiline}
           autoFocus={autoFocus}
-          maxLength={maxLength}
+          // On iPhone a field already over its maxLength (a long scanned or imported name) refuses
+          // every key, even backspace. So never below the text's length now or when it got focus:
+          // a word deleted from an over-long name can be typed back, but the name can't grow.
+          maxLength={maxLength !== undefined ? Math.max(maxLength, value.length, focused ? focusLength.current : 0) : undefined}
           secureTextEntry={secureTextEntry}
           autoCapitalize={autoCapitalize}
           autoCorrect={autoCorrect}
@@ -137,6 +142,7 @@ export function TextField({
           testID={testID}
           accessibilityLabel={label ?? placeholder}
           onFocus={() => {
+            focusLength.current = value.length;
             setFocused(true);
             onFocus?.();
           }}

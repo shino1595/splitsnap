@@ -3,15 +3,21 @@ import { assignEqually, assignUnassignedToAll, newBillItem, setPortions, toggleP
 import {
   applyChargeFields,
   applyItemFields,
+  applyValidChargeFields,
+  applyValidItemFields,
   billFromSplit,
   buildSummary,
+  CHARGE_LABEL_MAX,
   chargeFromForm,
   chargesSuffix,
+  clampChargeLabel,
+  clampText,
   displayNames,
   evaluateChargeForm,
   firstName,
   hasUnequalPortions,
   isSharedByAll,
+  ITEM_NAME_MAX,
   itemFromFields,
   itemShares,
   itemSplitCaption,
@@ -234,6 +240,80 @@ describe('itemizedEditor: item entry', () => {
     expect(toggleNewItemSharer([], [A], A)).toBeNull();
     // A person added to the expense later is included again once "Everyone" is back.
     expect(newItemSharers(toggleNewItemSharer([A, C, D], PEOPLE, B), [...PEOPLE, 'E'])).toEqual([A, B, C, D, 'E']);
+  });
+
+  it('cuts over-long text at a word break, leaving text that fits alone', () => {
+    expect(clampText('Naan', 60)).toBe('Naan');
+    expect(clampText('  odd   spacing  ', 60)).toBe('  odd   spacing  ');
+    expect(clampText('Masala Dosa With Extra Sambar', 20)).toBe('Masala Dosa With');
+    expect(clampText('Paneer Tikka Masala', 12)).toBe('Paneer Tikka');
+    expect(clampText('ABCDEFGHIJKLMNOPQRSTUVWXYZ', 10)).toBe('ABCDEFGHIJ');
+    expect(clampText('A BCDEFGHIJKLMNOPQRSTUVWXYZ', 10)).toBe('A BCDEFGHI');
+    expect(clampText('   Dal     Makhani   ', 12)).toBe('Dal Makhani');
+    expect(ITEM_NAME_MAX).toBe(60);
+    expect(CHARGE_LABEL_MAX).toBe(40);
+  });
+
+  it('applies an open item editor as it is typed, keeping the last valid value of a field', () => {
+    const item = assignEqually(newBillItem('Butr Chikn', 42000), [A, C]);
+    const renamed = applyValidItemFields(item, { name: 'Butter Chicken ', qty: '1', amount: '420.00' }, 'INR');
+    expect(renamed).toEqual({ ...item, name: 'Butter Chicken' });
+    // An emptied price or name keeps the last valid value; the other fields still apply.
+    expect(applyValidItemFields(item, { name: 'Butter Chicken', qty: '2', amount: '' }, 'INR')).toEqual({
+      ...item,
+      name: 'Butter Chicken',
+      quantity: 2,
+    });
+    expect(applyValidItemFields(item, { name: '  ', qty: 'x', amount: '450' }, 'INR')).toEqual({ ...item, amount: 45000 });
+    expect(applyValidItemFields(item, { name: 'Tea', qty: '1', amount: '0' }, 'INR').amount).toBe(42000);
+    // Nothing changed: the same object, so the bill isn't touched.
+    expect(applyValidItemFields(item, { name: 'Butr  Chikn', qty: '', amount: '420' }, 'INR')).toBe(item);
+    expect(applyValidItemFields(renamed, { name: 'Butter Chicken', qty: '1', amount: '420.00' }, 'INR')).toBe(renamed);
+  });
+
+  it('folds keystrokes like the card does: a field backspaced to nothing is back to its opening value', () => {
+    const opened = assignEqually(newBillItem('Paneer Tikka', 36000), [A, B]);
+    let item = opened;
+    const type = (name: string, amount: string) => {
+      item = applyValidItemFields(item, { name, qty: '1', amount }, 'INR', opened);
+    };
+    ['Paneer Tikk', 'Paneer', 'P'].forEach((name) => type(name, '360.00'));
+    expect(item.name).toBe('P');
+    type('', '360.00');
+    expect(item).toEqual(opened);
+    type('Paneer Kadai', '36');
+    type('Paneer Kadai', '3');
+    expect(item.amount).toBe(300);
+    type('Paneer Kadai', '');
+    expect(item).toEqual({ ...opened, name: 'Paneer Kadai' });
+    type('Paneer Kadai', '450');
+    expect(item).toEqual({ ...opened, name: 'Paneer Kadai', amount: 45000 });
+  });
+
+  it('cuts a long charge label but keeps its closing rate', () => {
+    expect(clampChargeLabel('CGST 2.5%')).toBe('CGST 2.5%');
+    const service = clampChargeLabel('Service Charge (Optional) on Food & Bev 10%');
+    expect(service).toBe('Service Charge (Optional) on Food & 10%');
+    expect(service.length).toBeLessThanOrEqual(CHARGE_LABEL_MAX);
+    expect(percentFromLabel(service)).toBe(10);
+    expect(clampChargeLabel('Central Goods And Services Tax Payable 2.5 %')).toBe('Central Goods And Services Tax 2.5%');
+    expect(clampChargeLabel('Central Goods And Services Tax At Two Point Five')).toBe('Central Goods And Services Tax At Two');
+  });
+
+  it('applies an open charge editor as it is typed', () => {
+    const tax = { id: 't', kind: 'tax' as const, label: 'CGST 2.5%', amount: 3475, allocation: 'proportional' as const };
+    expect(applyValidChargeFields(tax, { label: 'CGST 2.5%', amount: '34.75' }, 'INR')).toBe(tax);
+    expect(applyValidChargeFields(tax, { label: 'SGST 2.5%', amount: '34.75' }, 'INR')).toEqual({ ...tax, label: 'SGST 2.5%' });
+    // The label applies even while the amount is being retyped.
+    expect(applyValidChargeFields(tax, { label: 'GST 5%', amount: '' }, 'INR')).toEqual({ ...tax, label: 'GST 5%' });
+    expect(applyValidChargeFields(tax, { label: 'GST 5%', amount: '-' }, 'INR')).toEqual({ ...tax, label: 'GST 5%' });
+    expect(applyValidChargeFields(tax, { label: '', amount: '69.50' }, 'INR')).toEqual({ ...tax, label: 'Tax', amount: 6950 });
+    const discount = { id: 'd', kind: 'discount' as const, label: 'Offer', amount: -5000, allocation: 'proportional' as const };
+    expect(applyValidChargeFields(discount, { label: 'Offer', amount: '60' }, 'INR').amount).toBe(-6000);
+    // Backspacing '34.75' to '3' then to nothing goes back to the amount the editor opened with.
+    const typed = applyValidChargeFields(tax, { label: 'CGST 2.5%', amount: '3' }, 'INR', tax);
+    expect(typed.amount).toBe(300);
+    expect(applyValidChargeFields(typed, { label: 'CGST 2.5%', amount: '' }, 'INR', tax)).toEqual(tax);
   });
 
   it('edits an item and keeps who shared it', () => {
