@@ -156,12 +156,32 @@ describe('scanReview: copy and draft values', () => {
   });
 
   it('does not blame a key in Settings when the shared demo key was rejected', () => {
-    const demo = ocrErrorCopy('bad_key', { demoKey: true });
+    const demo = ocrErrorCopy('bad_key', { keySource: 'demo' });
     expect(demo.title).toBe('Demo key not accepted');
     expect(demo.message).not.toContain('API key in Settings');
     expect(demo.settingsAction).toBe(true);
-    expect(ocrErrorCopy('bad_key', { demoKey: false }).title).toBe('API key not accepted');
-    expect(ocrErrorCopy('quota', { demoKey: true })).toEqual(ocrErrorCopy('quota'));
+    expect(ocrErrorCopy('bad_key', { keySource: 'own' }).title).toBe('API key not accepted');
+    expect(ocrErrorCopy('bad_key').title).toBe('API key not accepted');
+    expect(ocrErrorCopy('quota', { keySource: 'demo' })).toEqual(ocrErrorCopy('quota'));
+  });
+
+  it('names the built-in key when OCR.space rejects it', () => {
+    const builtIn = ocrErrorCopy('bad_key', { keySource: 'built_in' });
+    expect(builtIn.title).toBe('Built-in key not accepted');
+    expect(builtIn.message).toContain('built-in key');
+    expect(builtIn.message).not.toContain('API key in Settings');
+    expect(builtIn.settingsAction).toBe(true);
+    expect(ocrErrorCopy('quota', { keySource: 'built_in' })).toEqual(ocrErrorCopy('quota'));
+    expect(ocrErrorCopy('network', { keySource: 'built_in' })).toEqual(ocrErrorCopy('network'));
+  });
+
+  it('does not tell someone with their own key to add a key when it hits the limit', () => {
+    const own = ocrErrorCopy('quota', { keySource: 'own' });
+    expect(own.title).toBe('Scanning limit reached');
+    expect(own.message).not.toContain('add your own');
+    expect(own.settingsAction).toBe(false);
+    expect(ocrErrorCopy('quota').message).toContain('add your own free OCR.space key');
+    expect(ocrErrorCopy('quota').settingsAction).toBe(true);
   });
 
   it('only offers Retry first when retrying the same photo can help', () => {

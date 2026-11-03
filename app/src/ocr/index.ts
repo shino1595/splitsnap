@@ -9,6 +9,8 @@ export * from './types';
 export { buildRows } from './lineBuilder';
 export { extractNumbers, normalizeLine, parseReceipt } from './receiptParser';
 export { OCR_SPACE_DEMO_KEY, recognizeText } from './ocrSpace';
+export { OCR_BUILT_IN_KEY, ocrKeyFor, ocrKeyLabel, ocrKeySource } from './ocrKey';
+export type { OcrKeySource } from './ocrKey';
 export { prepareImageForOcr } from './imagePrep';
 export { SAMPLE_BILL_ROWS } from './sampleBill';
 export { receiptFromOcr, receiptToBill, sampleReceipt } from './bill';

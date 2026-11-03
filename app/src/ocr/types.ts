@@ -69,7 +69,7 @@ export const OCR_ERROR_MESSAGES: Record<OcrErrorCode, string> = {
   quota:
     'The free bill-reading service is busy or its daily limit was reached. Try again in a while, or add your own free OCR.space key in Settings.',
   too_large: 'This photo is too large to read. Try again, or crop it closer to the bill.',
-  bad_key: 'The OCR.space API key was not accepted. Check it in Settings, or clear it to use the shared demo key.',
+  bad_key: 'The OCR.space API key was not accepted. Check it in Settings, or clear it to scan without your own key.',
   no_text: 'No text was found in the photo. Lay the bill flat in good light and keep it in focus.',
   timeout: 'Reading the bill took too long. Try again, ideally with a closer, sharper photo.',
   unknown: 'Something went wrong while reading the bill. Try again or enter the items by hand.',

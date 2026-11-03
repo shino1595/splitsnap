@@ -101,11 +101,20 @@ Reading the text is done by **OCR.space**, a free online service. Your photo is 
 the items, quantities, prices, taxes and the printed total. You can check and edit everything on
 the review screen before splitting.
 
-- **Demo key (default):** works with no setup, but it is shared by everyone and rate-limited, so
-  scans can fail at busy times.
-- **Your own free key:** get one in a minute at
-  [ocr.space/ocrapi/freekey](https://ocr.space/ocrapi/freekey) (email only, no payment). Paste it
-  in **Account → Settings → OCR.space API key**. The free plan allows about 25,000 scans a month.
+Which key a scan uses (the first one that exists):
+
+1. **Your own free key:** get one in a minute at
+   [ocr.space/ocrapi/freekey](https://ocr.space/ocrapi/freekey) (email only, no payment). Paste it
+   in **Account → Bill scanning & data → OCR.space API key**. The free plan allows about 25,000
+   scans a month and 500 a day per internet connection.
+2. **Built-in key (the published app):** a free key stored as the GitHub repo secret
+   `OCR_SPACE_KEY`. The publish job puts it inside the app, so friends can scan with no setup;
+   everyone shares its monthly limit. Because it ships inside the app, it must only ever be a free
+   key. To add or change it: GitHub → the repo → Settings → Secrets and variables → Actions →
+   `OCR_SPACE_KEY`, then run the publish workflow again (Actions → Publish SplitSnap (EAS Update)
+   → Run workflow).
+3. **Demo key:** used when there is neither (Snack, local previews). It is shared by everyone on
+   the internet and rate-limited, so scans can fail at busy times ("Scanning limit reached").
 - **OCR engine** (in Settings): Engine 2 is the default and is best for receipts. Engine 1 is
   faster, and Engine 3 is the most accurate but slower.
 

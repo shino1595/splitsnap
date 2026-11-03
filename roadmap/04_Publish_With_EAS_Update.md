@@ -59,6 +59,10 @@ If this fails, we stop there. Very little is spent, and the main app is untouche
      a secret; it goes into `app.json`.
    - Create an **access token** at expo.dev/settings/access-tokens and paste it into the GitHub
      repo as the secret `EXPO_TOKEN` (Settings → Secrets and variables → Actions).
+   - Optional: a free OCR.space key (ocr.space/ocrapi/freekey) as the secret `OCR_SPACE_KEY`. The
+     publish job builds it into the app so friends can scan without entering a key. It ends up
+     inside the public app bundle, so use only a free key. Without it the app uses the shared demo
+     key.
 3. **First push:** I prepare the files and the git commands. Pushing opens a GitHub sign-in in your
    browser, so you approve it. This is also when you decide whether a personal project may be
    pushed from this work PC.

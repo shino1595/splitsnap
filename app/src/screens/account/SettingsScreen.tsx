@@ -13,6 +13,7 @@ import type { SyncStatus } from '../../sync/types';
 import { DisplayNameForm } from '../sharing/ShareGroupScreen';
 import { displayNameDraft, syncStatusText } from '../sharing/sharingLogic';
 import { buildFullExport } from './accountData';
+import { OCR_BUILT_IN_KEY } from '../../ocr/ocrKey';
 import { OcrSettingsCard } from './components/OcrSettingsCard';
 import { CurrencyPickerRow, ListCard, RowIcon } from './components/rows';
 
@@ -104,6 +105,7 @@ export default function SettingsScreen({ navigation }: RootScreenProps<'Settings
       <SectionHeader title="Bill scanning" style={styles.firstHeader} />
       <OcrSettingsCard
         apiKey={settings.ocrApiKey}
+        builtInKey={OCR_BUILT_IN_KEY !== ''}
         engine={settings.ocrEngine}
         onSaveKey={(key) => actions.updateSettings({ ocrApiKey: key })}
         onEngineChange={(engine) => actions.updateSettings({ ocrEngine: engine })}

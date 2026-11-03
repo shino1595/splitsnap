@@ -298,6 +298,22 @@ export const OCR_SPACE_DEMO_KEY = 'helloworld';
 export async function recognizeText(base64Jpeg: string, opts: { apiKey: string; engine: OcrEngine; signal?: AbortSignal }): Promise<OcrResult>;
 ```
 
+### ocr/ocrKey.ts (pure)
+```ts
+export type OcrKeySource = 'own' | 'built_in' | 'demo';
+/** Free key baked into published builds: GitHub secret OCR_SPACE_KEY → env EXPO_PUBLIC_OCR_SPACE_KEY
+ *  on the `eas update` step → inlined by Expo (read as the literal `process.env.EXPO_PUBLIC_OCR_SPACE_KEY`,
+ *  inside try/catch because the browser test runner has no `process`). '' in Snack, tests and builds
+ *  published without the secret. Ships in the public bundle, so free keys only. */
+export const OCR_BUILT_IN_KEY: string;
+/** Own key from Settings → 'own'; else built-in → 'built_in'; else 'demo'. */
+export function ocrKeySource(ownKey: string, builtInKey?: string): OcrKeySource;
+/** The key to send, in that order (OCR_SPACE_DEMO_KEY last). */
+export function ocrKeyFor(ownKey: string, builtInKey?: string): string;
+/** 'Your OCR.space key' | 'Built-in key' | 'Shared demo key'. */
+export function ocrKeyLabel(source: OcrKeySource): string;
+```
+
 ### ocr/imagePrep.ts (Expo)
 ```ts
 /** Resize (long edge ≤ 1600, then 1300, 1000) and JPEG-compress (0.7 → 0.5 → 0.35) until the
@@ -519,7 +535,7 @@ dynamic.
 | SettleUp | `screens/settle/SettleUpScreen.tsx` | If no from/to given: list of my debts/credits (from group or overall) to pick from; payer → payee row with avatars and swap button; AmountField prefilled; method chips Cash / UPI / Bank / Other; date; note; 'Pay via UPI' button when I pay, payee has upiId and currency INR (opens UPI app, then asks to record); Save → addPayment → back |
 | PaymentDetail | `screens/settle/PaymentDetailScreen.tsx` | Who paid whom, amount, date, method, note, group; delete (confirm) |
 | Search | `screens/search/SearchScreen.tsx` | Autofocus search box, results via `searchExpenses` with group name, tap → ExpenseDetail |
-| Settings | `screens/account/SettingsScreen.tsx` | Bill scanning: OCR.space API key (secure field, 'Get a free key' explanation text with the URL https://ocr.space/ocrapi/freekey, demo-key notice), engine segmented (1/2/3 with one-line explanations; 2 default); default currency; simplify default; Export all as CSV; Reset demo data (confirm); Clear all data (confirm) |
+| Settings | `screens/account/SettingsScreen.tsx` | Bill scanning: OCR.space API key (secure field, 'Get a free key' explanation text with the URL https://ocr.space/ocrapi/freekey; banner says which key scans use: own, SplitSnap's built-in key, or the demo key), engine segmented (1/2/3 with one-line explanations; 2 default); default currency; simplify default; Export all as CSV; Reset demo data (confirm); Clear all data (confirm) |
 
 ---------------------------------------------------------------------------------------------
 ## 8. The two headline flows
@@ -544,8 +560,11 @@ explain if denied), **Choose from gallery** (`launchImageLibraryAsync`, mediaTyp
 quality 1), **Try a sample bill** (offline: `sampleReceipt`). While scanning show the photo
 with a `LoadingOverlay` and the stage text ('Shrinking photo…', 'Reading the bill…',
 'Finding items…'). Errors → Banner with friendly text by `OcrError.code` and Retry / Enter
-manually. Demo-key Banner when `settings.ocrApiKey` is empty ('Using the shared demo key —
-add your free key in Settings for reliable scans').
+manually. Scans send `ocrKeyFor(settings.ocrApiKey)`: own key, else the built-in key, else the
+demo key. Demo-key Banner only when `ocrKeySource` is 'demo' ('Using the shared demo key —
+add your free key in Settings for reliable scans'). A rejected key that isn't the user's own gets
+its own copy ('Built-in key not accepted' / 'Demo key not accepted'), never "check your key"; a
+limit hit on the user's own key doesn't tell them to add a key.
 After OCR: **review list** — merchant (editable), each item row editable (name, qty, amount;
 delete), add item, charges (label, amount, kind), detected total vs computed total with a
 warning Banner if they differ, 'Show raw text' expander. Scanned text longer than its field (item

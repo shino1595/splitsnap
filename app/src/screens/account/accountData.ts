@@ -4,6 +4,7 @@ import type { AppState, CurrencyAmounts, ID, ISODate, OcrEngine, Settings } from
 import { addAmounts } from '../../lib/balances';
 import { buildCsv } from '../../lib/csv';
 import { CURRENCIES, currencyInfo } from '../../lib/money';
+import { OCR_BUILT_IN_KEY, ocrKeyLabel, ocrKeySource } from '../../ocr/ocrKey';
 import { liveExpenses, livePayments } from '../../store/selectors';
 
 export interface AccountStats {
@@ -110,14 +111,10 @@ export function currencyLabel(code: string): string {
   return info.name && info.name !== code ? `${code} · ${info.name}` : code;
 }
 
-/** True when the user has entered their own OCR.space key (otherwise the shared demo key is used). */
-export function hasOwnOcrKey(settings: Pick<Settings, 'ocrApiKey'>): boolean {
-  return settings.ocrApiKey.trim().length > 0;
-}
-
-/** One line for the Account screen: 'Your OCR.space key · Engine 2' or 'Shared demo key · Engine 2'. */
-export function scanningSummary(settings: Pick<Settings, 'ocrApiKey' | 'ocrEngine'>): string {
-  return `${hasOwnOcrKey(settings) ? 'Your OCR.space key' : 'Shared demo key'} · Engine ${settings.ocrEngine}`;
+/** One line for the Account screen: 'Your OCR.space key · Engine 2', 'Built-in key · Engine 2' or
+ *  'Shared demo key · Engine 2'. */
+export function scanningSummary(settings: Pick<Settings, 'ocrApiKey' | 'ocrEngine'>, builtInKey: string = OCR_BUILT_IN_KEY): string {
+  return `${ocrKeyLabel(ocrKeySource(settings.ocrApiKey, builtInKey))} · Engine ${settings.ocrEngine}`;
 }
 
 /** Keys are pasted from an email or web page: drop spaces and line breaks picked up on the way. */

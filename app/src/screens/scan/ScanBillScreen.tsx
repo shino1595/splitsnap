@@ -7,7 +7,7 @@ import { useAppState } from '../../store/AppStore';
 import { useDraft } from '../../store/draft';
 import { receiptToBill, sampleReceipt, scanBill } from '../../ocr';
 import type { ParsedReceipt } from '../../ocr';
-import { OCR_SPACE_DEMO_KEY } from '../../ocr/ocrSpace';
+import { ocrKeyFor, ocrKeySource } from '../../ocr/ocrKey';
 import { SAMPLE_BILL_ROWS } from '../../ocr/sampleBill';
 import { todayISO } from '../../lib/dates';
 import { itemizedTotal } from '../../lib/itemized';
@@ -78,7 +78,7 @@ export default function ScanBillScreen({ navigation }: Props) {
   const leavingRef = React.useRef(false);
   const { width } = useWindowDimensions();
 
-  const usingDemoKey = !settings.ocrApiKey.trim();
+  const keySource = ocrKeySource(settings.ocrApiKey);
   const currency = base?.currency ?? draft.currency;
   const evaluation = React.useMemo(
     () => (base && review ? evaluateReview(base, review, currency) : null),
@@ -125,7 +125,7 @@ export default function ScanBillScreen({ navigation }: Props) {
     setPhase('scanning');
     try {
       const { receipt, ocr } = await scanBill(next.uri, {
-        apiKey: settings.ocrApiKey.trim() || OCR_SPACE_DEMO_KEY,
+        apiKey: ocrKeyFor(settings.ocrApiKey),
         engine: settings.ocrEngine,
         currencyHint: draft.currency,
         size: next.width && next.height ? { width: next.width, height: next.height } : undefined,
@@ -276,7 +276,7 @@ export default function ScanBillScreen({ navigation }: Props) {
   }
 
   if (phase === 'error') {
-    const copy = ocrErrorCopy(errorCode, { demoKey: usingDemoKey });
+    const copy = ocrErrorCopy(errorCode, { keySource });
     // Retrying an unreadable or oversized photo gives the same result, so another photo comes first.
     const retryFirst = !!photo && retryHelps(errorCode);
     const retry = photo ? (
@@ -416,7 +416,7 @@ export default function ScanBillScreen({ navigation }: Props) {
   return (
     <Screen key="choose">
       <View style={styles.stack}>
-        {usingDemoKey ? (
+        {keySource === 'demo' ? (
           <Banner
             tone="info"
             message="Using the shared demo key — add your free key in Settings for reliable scans."

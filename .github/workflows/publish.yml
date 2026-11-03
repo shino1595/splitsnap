@@ -35,8 +35,17 @@ jobs:
       - name: Check versions match Expo SDK 58
         run: npx expo install --check
 
+      # OCR_SPACE_KEY (optional repo secret) is a free OCR.space key that Expo inlines into the app,
+      # so scans work without a key in Settings. It ships inside the public bundle: free keys only.
+      # Without it the app falls back to the shared demo key.
       - name: Publish update
-        run: eas update --branch main --message "SplitSnap ${{ github.sha }}" --environment production --non-interactive
+        env:
+          EXPO_PUBLIC_OCR_SPACE_KEY: ${{ secrets.OCR_SPACE_KEY }}
+        run: |
+          if [ -z "$EXPO_PUBLIC_OCR_SPACE_KEY" ]; then
+            echo "::warning::Repo secret OCR_SPACE_KEY is not set, so scans use the shared OCR.space demo key."
+          fi
+          eas update --branch main --message "SplitSnap ${{ github.sha }}" --environment production --non-interactive
 
       # The fixed "always latest" link (roadmap/05) names channel "main", not an update, so the
       # channel must exist and serve branch "main". Creating it fails harmlessly once it exists.

@@ -24,10 +24,12 @@ async function openFreeKeyPage() {
 
 interface ApiKeyFieldProps {
   apiKey: string;
+  /** Published builds carry a free key that an empty field falls back to. */
+  builtInKey: boolean;
   onSave: (key: string) => void;
 }
 
-function ApiKeyField({ apiKey, onSave }: ApiKeyFieldProps) {
+function ApiKeyField({ apiKey, builtInKey, onSave }: ApiKeyFieldProps) {
   const [text, setText] = React.useState(apiKey);
   const [revealed, setRevealed] = React.useState(false);
   const [justSaved, setJustSaved] = React.useState(false);
@@ -79,11 +81,17 @@ function ApiKeyField({ apiKey, onSave }: ApiKeyFieldProps) {
         <AppText variant="caption" color={colors.primaryDark} weight="semibold" onPress={openFreeKeyPage} accessibilityLabel="Open the OCR.space free key page">
           {OCR_FREE_KEY_URL}
         </AppText>{' '}
-        (no payment needed). Leave empty to use the shared demo key, which is rate-limited.
+        (no payment needed).{' '}
+        {builtInKey ? "Leave empty to use SplitSnap's built-in key." : 'Leave empty to use the shared demo key, which is rate-limited.'}
       </AppText>
       <View style={styles.keyActions}>
         {dirty ? (
-          <Button title={cleaned ? 'Save key' : 'Use the demo key'} icon="checkmark" size="sm" onPress={() => save(cleaned)} />
+          <Button
+            title={cleaned ? 'Save key' : builtInKey ? 'Use the built-in key' : 'Use the demo key'}
+            icon="checkmark"
+            size="sm"
+            onPress={() => save(cleaned)}
+          />
         ) : apiKey ? (
           <Button title="Remove key" icon="trash-outline" variant="ghost" size="sm" onPress={() => save('')} />
         ) : null}
@@ -103,18 +111,27 @@ function ApiKeyField({ apiKey, onSave }: ApiKeyFieldProps) {
 
 interface OcrSettingsCardProps {
   apiKey: string;
+  /** Published builds carry a free key that an empty field falls back to. */
+  builtInKey: boolean;
   engine: OcrEngine;
   onSaveKey: (key: string) => void;
   onEngineChange: (engine: OcrEngine) => void;
   onTestSample: () => void;
 }
 
-export function OcrSettingsCard({ apiKey, engine, onSaveKey, onEngineChange, onTestSample }: OcrSettingsCardProps) {
+export function OcrSettingsCard({ apiKey, builtInKey, engine, onSaveKey, onEngineChange, onTestSample }: OcrSettingsCardProps) {
   const ownKey = apiKey.trim().length > 0;
   return (
     <>
       {ownKey ? (
         <Banner tone="success" title="Using your own key" message="Scans use your OCR.space free quota." style={styles.banner} />
+      ) : builtInKey ? (
+        <Banner
+          tone="success"
+          title="Using SplitSnap's built-in key"
+          message="Scans work with no setup. Everyone using SplitSnap shares its free monthly limit, so if scans ever stop working, add your own free key below."
+          style={styles.banner}
+        />
       ) : (
         <Banner
           tone="warning"
@@ -126,7 +143,7 @@ export function OcrSettingsCard({ apiKey, engine, onSaveKey, onEngineChange, onT
         />
       )}
       <Card style={styles.card}>
-        <ApiKeyField apiKey={apiKey} onSave={onSaveKey} />
+        <ApiKeyField apiKey={apiKey} builtInKey={builtInKey} onSave={onSaveKey} />
 
         <View style={styles.divider} />
 

@@ -10,7 +10,6 @@ import {
   currencyLabel,
   currencyOptions,
   emailError,
-  hasOwnOcrKey,
   scanningSummary,
 } from '../../app/src/screens/account/accountData';
 import { matchHint, paidByText, searchTerms, snippetAround } from '../../app/src/screens/search/searchHints';
@@ -95,10 +94,12 @@ describe('accountData', () => {
   });
 
   it('describes the OCR set-up and cleans pasted keys', () => {
-    expect(hasOwnOcrKey({ ocrApiKey: '' })).toBe(false);
-    expect(hasOwnOcrKey({ ocrApiKey: '  ' })).toBe(false);
+    // The test runner has no built-in key, so an empty field means the demo key.
     expect(scanningSummary({ ocrApiKey: '', ocrEngine: 2 })).toBe('Shared demo key · Engine 2');
+    expect(scanningSummary({ ocrApiKey: '  ', ocrEngine: 2 })).toBe('Shared demo key · Engine 2');
+    expect(scanningSummary({ ocrApiKey: '', ocrEngine: 2 }, 'K8BUILTIN')).toBe('Built-in key · Engine 2');
     expect(scanningSummary({ ocrApiKey: 'K812345', ocrEngine: 3 })).toBe('Your OCR.space key · Engine 3');
+    expect(scanningSummary({ ocrApiKey: 'K812345', ocrEngine: 3 }, 'K8BUILTIN')).toBe('Your OCR.space key · Engine 3');
     expect(cleanOcrKey(' K8123 45\n')).toBe('K812345');
   });
 });

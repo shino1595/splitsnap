@@ -235,7 +235,8 @@ export type OcrEngine = (typeof OCR_ENGINE_IDS)[number];
 
 export interface Settings {
   defaultCurrency: CurrencyCode;
-  /** OCR.space API key. Empty string = use the public demo key 'helloworld'. */
+  /** OCR.space API key. Empty string = the key built into published builds, else the public demo
+   *  key 'helloworld' (ocr/ocrKey.ts). */
   ocrApiKey: string;
   ocrEngine: OcrEngine;
   /** Default for new groups. */

@@ -9,7 +9,8 @@ import { formatCurrencyAmounts, formatMoney } from '../../lib/money';
 import { colors, radius, spacing, themed } from '../../theme';
 import type { AppearancePreference } from '../../theme';
 import { AppText, BalanceText, Card, Icon, IconButton, ListItem, Screen, SectionHeader, SegmentedControl, wrapFriendlyAmounts } from '../../ui';
-import { accountStats, hasOwnOcrKey, scanningSummary } from './accountData';
+import { ocrKeyLabel, ocrKeySource } from '../../ocr/ocrKey';
+import { accountStats, scanningSummary } from './accountData';
 import { CurrencyPickerRow, ListCard, RowIcon } from './components/rows';
 import { ProfileCard } from './components/ProfileCard';
 
@@ -97,7 +98,7 @@ export default function AccountScreen({ navigation }: TabScreenProps<'Account'>)
     });
   }, [navigation]);
 
-  const ownKey = hasOwnOcrKey(settings);
+  const keySource = ocrKeySource(settings.ocrApiKey);
 
   return (
     <Screen keyboard>
@@ -123,8 +124,8 @@ export default function AccountScreen({ navigation }: TabScreenProps<'Account'>)
           title="Bill scanning & data"
           subtitle={
             <AppText variant="caption" numberOfLines={2} style={styles.rowSubtitle}>
-              <AppText variant="caption" weight="semibold" color={ownKey ? colors.primaryDark : colors.warning}>
-                {ownKey ? 'Your OCR.space key' : 'Shared demo key'}
+              <AppText variant="caption" weight="semibold" color={keySource === 'demo' ? colors.warning : colors.primaryDark}>
+                {ocrKeyLabel(keySource)}
               </AppText>
               {` · Engine ${settings.ocrEngine} · export, reset`}
             </AppText>

@@ -1,6 +1,7 @@
 // Pure logic for the Scan bill screen: editable review rows, error copy and draft values.
 // No React here so it can be unit-tested.
 import type { ChargeKind, CurrencyCode, ISODate, Minor } from '../../types';
+import type { OcrKeySource } from '../../ocr/ocrKey';
 import type { ParsedCharge, ParsedItem, ParsedReceipt } from '../../ocr/types';
 import { isValidISODate } from '../../lib/dates';
 import { newId } from '../../lib/ids';
@@ -50,7 +51,7 @@ const ERROR_COPY: Record<ScanErrorCode, ErrorCopy> = {
   },
   bad_key: {
     title: 'API key not accepted',
-    message: 'OCR.space rejected the API key in Settings. Check it, or clear it to use the shared demo key.',
+    message: 'OCR.space rejected the API key in Settings. Check it, or clear it to scan without your own key.',
     settingsAction: true,
   },
   no_text: {
@@ -70,17 +71,35 @@ const ERROR_COPY: Record<ScanErrorCode, ErrorCopy> = {
   },
 };
 
-/** With no key in Settings the rejected key is the shared demo key, so "check your key" would mislead. */
-const DEMO_KEY_REJECTED: ErrorCopy = {
-  title: 'Demo key not accepted',
-  message:
-    "OCR.space didn't accept the shared demo key just now. Add your own free key in Settings, or try again in a few minutes.",
-  settingsAction: true,
+/** With no key in Settings the rejected key isn't the user's, so "check your key" would mislead. */
+const OTHER_KEY_REJECTED: Record<Exclude<OcrKeySource, 'own'>, ErrorCopy> = {
+  built_in: {
+    title: 'Built-in key not accepted',
+    message:
+      "OCR.space didn't accept SplitSnap's built-in key just now. Add your own free key in Settings, or try again later.",
+    settingsAction: true,
+  },
+  demo: {
+    title: 'Demo key not accepted',
+    message:
+      "OCR.space didn't accept the shared demo key just now. Add your own free key in Settings, or try again in a few minutes.",
+    settingsAction: true,
+  },
 };
 
-/** Friendly title and message for an OcrError code (unknown codes get the generic copy). */
-export function ocrErrorCopy(code: string, opts?: { demoKey?: boolean }): ErrorCopy {
-  if (code === 'bad_key' && opts?.demoKey) return DEMO_KEY_REJECTED;
+/** The user's own key is already in Settings, so "add your own key" would send them in a circle. */
+const OWN_KEY_QUOTA: ErrorCopy = {
+  title: 'Scanning limit reached',
+  message: 'OCR.space is busy or your free key reached its limit for now. Wait a while and retry, or enter the items yourself.',
+  settingsAction: false,
+};
+
+/** Friendly title and message for an OcrError code (unknown codes get the generic copy).
+ *  keySource says whose key the scan sent (ocrKeySource); omitted = the generic copy. */
+export function ocrErrorCopy(code: string, opts?: { keySource?: OcrKeySource }): ErrorCopy {
+  const source = opts?.keySource;
+  if (code === 'bad_key' && (source === 'built_in' || source === 'demo')) return OTHER_KEY_REJECTED[source];
+  if (code === 'quota' && source === 'own') return OWN_KEY_QUOTA;
   return ERROR_COPY[code as ScanErrorCode] ?? ERROR_COPY.unknown;
 }
 
