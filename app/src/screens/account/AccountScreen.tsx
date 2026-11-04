@@ -10,6 +10,7 @@ import { colors, radius, spacing, themed } from '../../theme';
 import type { AppearancePreference } from '../../theme';
 import { AppText, BalanceText, Card, Icon, IconButton, ListItem, Screen, SectionHeader, SegmentedControl, wrapFriendlyAmounts } from '../../ui';
 import { ocrKeyLabel, ocrKeySource } from '../../ocr/ocrKey';
+import { useSync } from '../../sync/SyncProvider';
 import { accountStats, scanningSummary } from './accountData';
 import { CurrencyPickerRow, ListCard, RowIcon } from './components/rows';
 import { ProfileCard } from './components/ProfileCard';
@@ -83,6 +84,8 @@ export default function AccountScreen({ navigation }: TabScreenProps<'Account'>)
   const { settings } = state;
   const stats = React.useMemo(() => accountStats(state), [state]);
   const summary = React.useMemo(() => overallSummary(state), [state]);
+  // A build without a shared-groups server ('off') really is this-phone-only.
+  const sharing = useSync().status !== 'off';
 
   React.useLayoutEffect(() => {
     navigation.setOptions({
@@ -179,8 +182,21 @@ export default function AccountScreen({ navigation }: TabScreenProps<'Account'>)
           </View>
         </View>
         <View style={styles.aboutLines}>
-          <AboutLine icon="phone-portrait-outline" text="Everything is saved on this phone only. There is no account and no sync." />
-          <AboutLine icon="scan-outline" text="Bills are read by the free OCR.space service; only the photo you scan is sent." />
+          {sharing ? (
+            <>
+              <AboutLine
+                icon="people-outline"
+                text="Groups you share sync with their members through SplitSnap's server. Everything else stays on this phone."
+              />
+              <AboutLine
+                icon="lock-closed-outline"
+                text="No passwords: the first time you share or join a group, this phone gets an anonymous account."
+              />
+            </>
+          ) : (
+            <AboutLine icon="phone-portrait-outline" text="Everything is saved on this phone only. There is no account and no sync." />
+          )}
+          <AboutLine icon="scan-outline" text="Bills are read by the free OCR.space service; only the photo you scan is sent there." />
           <AboutLine icon="information-circle-outline" text="Built with Expo SDK 54 and React Native." />
         </View>
       </Card>

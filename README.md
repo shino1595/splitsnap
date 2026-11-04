@@ -171,22 +171,51 @@ splits as ₹120 / ₹60 / ₹120 / ₹60.
 
 ## 5. Your data
 
-Everything is stored **only on the device or browser** that runs the app: no account, no server,
-no sync. The only thing that leaves the device is a bill photo when you scan it (it goes to
-OCR.space).
+Everything is stored **on the device or browser** that runs the app, except two things:
+- **Shared groups.** When you tap **Share** on a group, that group goes to SplitSnap's server (a
+  free Supabase database) so its members can use it from their own phones: its name, emoji and
+  settings, its members' names, and its expenses, payments, comments and activity. Bill photos
+  are not uploaded.
+- **Bill photos you scan.** They go to OCR.space to be read.
 
-An imported Splitwise file is read on the phone; it is not uploaded anywhere.
+Groups you haven't shared, expenses and payments with friends outside a group, and your settings
+stay on the phone. An imported Splitwise file is read on the phone; it is not uploaded anywhere (the group it
+creates is an ordinary group until you share it).
 
 To start over, use **Account → Settings**:
 - **Reset demo data** loads the sample groups and friends again and keeps your name and key.
 - **Clear all data** gives you an empty app.
+- Both stop syncing your shared groups on this phone. Nothing is deleted for the other members.
 
 ---
 
 ## 6. Limitations
 
-- It is a prototype for one device. Friends don't get the app or see your entries, and there are
-  no logins or sync.
+**Sharing**
+- Only **shared groups** sync between phones. Everything else stays on your phone and nobody else
+  sees it (section 5).
+- **Friends get the app through Expo Go only.** There is no App Store or Play Store version. Each
+  friend installs Expo Go and makes a free Expo account. You invite that account on expo.dev to
+  the organization **shinozaki1595's team** as a **Viewer**. The friend signs in to Expo Go once,
+  then opens the link in the group invite. Expo Go won't open SplitSnap when it is signed out or
+  signed in to an account outside the organization (on Android it only says "Failed to download
+  remote update").
+- **No logins or passwords** in SplitSnap itself. The first time you share or join a group, the
+  phone gets an anonymous account, and the others see the name you type. That account belongs to
+  that phone: if someone deletes Expo Go or its data, it is gone. To get their place back, the
+  project owner deletes their old user in Supabase (Authentication → Users); they then join again
+  with the code and tap **That's me**.
+- **Changes show up while the app is open.** There are no notifications (Expo Go has none). A
+  phone that was closed catches up when it next opens.
+- Everyone in a shared group can add, change and delete its expenses and payments. If two people
+  change the same expense at once, the later save wins. Nobody can remove a member: each person
+  leaves from their own phone (**Leave group**). Deleting a shared group deletes it for everyone.
+- The owner of the Supabase project can see all shared groups in its dashboard. Keep anything
+  private out of them.
+- Supabase's free plan pauses the project after a week without activity. Shared groups don't sync
+  until the owner restores it from the Supabase dashboard.
+
+**Everything else**
 - No real money moves. "Settle up" only records a payment. **Pay via UPI** opens a UPI app only on
   phones that have one; in the web preview it just offers to record the payment.
 - Scans depend on photo quality and on OCR.space. Always check the review screen.
@@ -194,8 +223,8 @@ To start over, use **Account → Settings**:
 
 ## 7. Costs
 
-None beyond the Claude subscription. Expo Snack, Expo Go, the Expo account and the OCR.space key
-are all free. Publishing to the App Store or Play Store would cost money (developer accounts), so
+None beyond the Claude subscription. Expo Snack, Expo Go, the Expo account (and friends' Viewer
+accounts), the Supabase project behind shared groups and the OCR.space key are all on free plans. Publishing to the App Store or Play Store would cost money (developer accounts), so
 it has not been done.
 
 ## 8. Future ideas
