@@ -120,7 +120,7 @@ fall back to the neutral summary.
 - **Share group** (group screen): uploads with `share_group` (all or nothing, existing
   comments included), saves `myMemberId` (a random `u_…` id) and the join code, then
   shows the code and a WhatsApp message with the fixed app link.
-- **Join group** (Groups tab): enter the code → `preview_group` lists the members → tap
+- **Join group** (Groups tab: **Add a group → Join a group**, or the **Join a group** button when there are no groups yet): enter the code → `preview_group` lists the members → tap
   **"That's me"** on your placeholder or **Join as new member** → `join_group` returns the member row
   that is now you (`myMemberId`) → full pull → the group appears with your history mapped to
   "You". Someone who was in the group before always gets their old row back.

@@ -53,7 +53,10 @@ If the phone shows an error screen, tap **View error log** to see the details.
 - Each group has a timeline by month, its balances (who owes whom, with Settle up and Remind),
   totals with charts (by category, month and payer) and a CSV export.
 - Groups can be archived, and deleted once everyone is settled up.
-- **Import from Splitwise** (Groups tab or Settings): choose a group's Splitwise
+- **Add a group** (the row under your groups) opens a menu: **Start a new group**, **Join a
+  group** with a code a friend shared, or **Import an existing group**. With no groups yet, all
+  three are buttons on the Groups tab.
+- **Import an existing group** (Groups tab or Settings) reads Splitwise exports: choose a group's Splitwise
   "Export as spreadsheet" CSV (or paste its text). Pick which column is you, name the group, and
   bring over every expense and payment, or only the final balances. The preview checks the result
   against the file's "Total balance" row before anything is saved.

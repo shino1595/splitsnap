@@ -2,6 +2,7 @@
 // display names, the sync status line and friendly error texts (docs/SYNC_DESIGN.md §7).
 import type { ID } from '../../types';
 import type { GroupPreview, SharedGroupInfo, SyncStatus } from '../../sync/types';
+import { ADD_GROUP_TITLE, JOIN_GROUP_TITLE } from '../groups/addGroupMenu';
 
 /** Opens SplitSnap in Expo Go (EAS Update, channel main). Every invite carries it. */
 export const APP_LINK =
@@ -54,7 +55,8 @@ export function inviteMessage(groupName: string, code: string): string {
     `Join "${groupName}" on SplitSnap, so we can split our costs together.`,
     '',
     `1. Open SplitSnap in Expo Go: ${APP_LINK}`,
-    `2. Go to Groups, tap "Join a group" and enter the code ${formatJoinCode(code)}`,
+    // A fresh install opens on the demo groups, so Join is in the "Add a group" menu.
+    `2. Go to Groups, tap "${ADD_GROUP_TITLE}", then "${JOIN_GROUP_TITLE}", and enter the code ${formatJoinCode(code)}`,
     '3. Tap "That\'s me" next to your name, or join as a new member if your name isn\'t there.',
   ].join('\n');
 }

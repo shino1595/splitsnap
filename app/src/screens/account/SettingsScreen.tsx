@@ -12,6 +12,7 @@ import { useSync } from '../../sync/SyncProvider';
 import type { SyncStatus } from '../../sync/types';
 import { DisplayNameForm } from '../sharing/ShareGroupScreen';
 import { displayNameDraft, syncStatusText } from '../sharing/sharingLogic';
+import { IMPORT_GROUP_SUBTITLE, IMPORT_GROUP_TITLE } from '../groups/addGroupMenu';
 import { buildFullExport } from './accountData';
 import { OCR_BUILT_IN_KEY } from '../../ocr/ocrKey';
 import { OcrSettingsCard } from './components/OcrSettingsCard';
@@ -145,8 +146,9 @@ export default function SettingsScreen({ navigation }: RootScreenProps<'Settings
         />
         <ListItem
           left={<RowIcon icon="download-outline" />}
-          title="Import from Splitwise"
-          subtitle="Create a group from a Splitwise spreadsheet export"
+          title={IMPORT_GROUP_TITLE}
+          subtitle={IMPORT_GROUP_SUBTITLE}
+          accessibilityLabel={`${IMPORT_GROUP_TITLE}. ${IMPORT_GROUP_SUBTITLE}`}
           onPress={() => navigation.navigate('ImportSplitwise')}
           showChevron
           testID="settings-import"

@@ -25,16 +25,53 @@ export interface SheetProps {
   footer?: React.ReactNode;
   /** false = children manage their own scrolling (e.g. a FlatList). Default true. */
   scroll?: boolean;
+  /**
+   * Runs once after each close, when the sheet is gone. Open the next screen here, not in the
+   * tap handler: iOS can't slide a modal screen up while this sheet is still fading out.
+   */
+  onClosed?: () => void;
   testID?: string;
 }
 
 const PANEL_MAX_WIDTH = 640;
+/** iOS reports the end of the fade (Modal onDismiss); this is the fallback if it never does. */
+const IOS_CLOSE_FALLBACK_MS = 800;
 
 /** Bottom sheet built on RN Modal: the backdrop fades in while the panel slides up. */
-export function Sheet({ visible, onClose, title, children, footer, scroll = true, testID }: SheetProps) {
+export function Sheet({ visible, onClose, title, children, footer, scroll = true, onClosed, testID }: SheetProps) {
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   const progress = React.useRef(new Animated.Value(0)).current;
+
+  const onClosedRef = React.useRef(onClosed);
+  React.useLayoutEffect(() => {
+    onClosedRef.current = onClosed;
+  });
+  const wasVisible = React.useRef(visible);
+  const closing = React.useRef(false);
+  const finishClose = React.useCallback(() => {
+    if (!closing.current) return;
+    closing.current = false;
+    onClosedRef.current?.();
+  }, []);
+
+  React.useEffect(() => {
+    const wasOpen = wasVisible.current;
+    wasVisible.current = visible;
+    if (visible) {
+      closing.current = false;
+      return undefined;
+    }
+    if (!wasOpen) return undefined;
+    closing.current = true;
+    // Android and web can open the next screen right away: it appears under the fading sheet.
+    if (Platform.OS !== 'ios') {
+      finishClose();
+      return undefined;
+    }
+    const timer = setTimeout(finishClose, IOS_CLOSE_FALLBACK_MS);
+    return () => clearTimeout(timer);
+  }, [visible, finishClose]);
 
   // Layout effect: the reset lands before paint, so a re-opened sheet never flashes fully open.
   React.useLayoutEffect(() => {
@@ -57,6 +94,7 @@ export function Sheet({ visible, onClose, title, children, footer, scroll = true
       transparent
       animationType="fade"
       onRequestClose={onClose}
+      onDismiss={finishClose}
       statusBarTranslucent
       navigationBarTranslucent
       supportedOrientations={['portrait', 'landscape']}

@@ -26,6 +26,7 @@ import {
   syncErrorText,
   syncStatusText,
 } from '../../app/src/screens/sharing/sharingLogic';
+import { ADD_GROUP_TITLE, JOIN_GROUP_TITLE, addGroupOptions } from '../../app/src/screens/groups/addGroupMenu';
 
 const FALLBACK = 'Something went wrong. Please try again.';
 
@@ -87,6 +88,15 @@ describe('invite message', () => {
     expect(text).toContain("That's me");
     expect(text.split('\n')).toHaveLength(5);
     expect(text.split('\n')[4]).toBe('3. Tap "That\'s me" next to your name, or join as a new member if your name isn\'t there.');
+  });
+
+  it('leads with the Add a group menu (a fresh install shows demo groups), using the labels the Groups tab shows', () => {
+    const line = inviteMessage('Goa Trip', 'K7M2QX9P').split('\n')[3];
+    expect(line).toBe('2. Go to Groups, tap "Add a group", then "Join a group", and enter the code K7M2-QX9P');
+    expect(line.indexOf(`"${ADD_GROUP_TITLE}"`)).toBeLessThan(line.indexOf(`"${JOIN_GROUP_TITLE}"`));
+    expect(line).toContain(`"${JOIN_GROUP_TITLE}"`);
+    expect(line).toContain(`"${ADD_GROUP_TITLE}"`);
+    expect(addGroupOptions(true).some((o) => o.title === JOIN_GROUP_TITLE)).toBe(true);
   });
 
   it('uses the Expo Go link for runtime SDK 58 on the main channel', () => {

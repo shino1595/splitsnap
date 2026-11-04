@@ -32,7 +32,7 @@ that doesn't mean re-sending QR codes.
 | **Shared database** | A free **Supabase** project (Postgres + live updates). You create it. Pick the **Mumbai** region for speed. |
 | **Who is who** | **Anonymous sign-in**: on first use each phone gets an anonymous account and you type a display name. No email or password. |
 | **Sharing a group** | Group screen → **Share group**: uploads the group, its members (as placeholders), expenses and payments, then shows an **8-character join code** and a ready-made WhatsApp message. |
-| **Joining** | Friends tap **Join a group** and enter the code. If the group already has them as a placeholder ("Bhavna"), they tap **"That's me"** and inherit Bhavna's history and balances. Otherwise they join as a new member. |
+| **Joining** | Friends tap **Add a group → Join a group** on the Groups tab (a fresh install shows demo groups; an empty tab shows **Join a group** directly) and enter the code. If the group already has them as a placeholder ("Bhavna"), they tap **"That's me"** and inherit Bhavna's history and balances. Otherwise they join as a new member. |
 | **Live updates** | Supabase **Realtime**: each phone listens for changes to the groups it belongs to. New and changed rows merge into the local copy, so the app works as today, just fed from the server too. |
 | **Offline** | Changes save locally first and wait in a send queue; it flushes when the phone is online. |
 | **Conflicts** | Rare for a group of friends. If two people edit the *same* expense at once, the later save wins, and Activity shows who edited it. |

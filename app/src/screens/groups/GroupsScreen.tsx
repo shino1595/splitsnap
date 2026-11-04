@@ -9,8 +9,11 @@ import { isSettled, summarizeFor } from '../../lib/balances';
 import type { BalanceSummary } from '../../lib/balances';
 import { formatCurrencyAmounts } from '../../lib/money';
 import { useSync } from '../../sync/SyncProvider';
-import { colors, spacing, themed } from '../../theme';
+import { colors, radius, spacing, themed } from '../../theme';
 import { AppText, AvatarStack, Button, Card, EmptyState, Icon, IconButton, Screen, SectionHeader, wrapFriendlyAmounts } from '../../ui';
+import { ADD_GROUP_TITLE, IMPORT_GROUP_TITLE, JOIN_GROUP_TITLE, addGroupHint, addGroupRowLabel } from './addGroupMenu';
+import type { AddGroupChoice } from './addGroupMenu';
+import { AddGroupSheet } from './components/AddGroupSheet';
 import { BalanceHeadline, balanceSentence } from './components/BalanceBits';
 import { GroupAvatar, IconTile } from './components/GroupAvatar';
 import { ListCard } from './components/ListCard';
@@ -104,11 +107,34 @@ function GroupRow({ row, onPress }: { row: GroupRowData; onPress: () => void }) 
   );
 }
 
+/** One slim row under the groups that opens the start / join / import menu. */
+function AddGroupRow({ canJoin, onPress }: { canJoin: boolean; onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={addGroupRowLabel(canJoin)}
+      testID="groups-add"
+      style={({ pressed }) => [styles.addRow, pressed && styles.addRowPressed]}
+    >
+      <Icon name="add" size={22} color={colors.primaryDark} />
+      <AppText weight="semibold" color={colors.primaryDark} numberOfLines={2} style={styles.addTitle}>
+        {ADD_GROUP_TITLE}
+      </AppText>
+      <AppText variant="caption" numberOfLines={1} style={styles.addHint}>
+        {addGroupHint(canJoin)}
+      </AppText>
+      <Icon name="chevron-forward" size={18} color={colors.textFaint} />
+    </Pressable>
+  );
+}
+
 export default function GroupsScreen({ navigation }: Props) {
   const state = useAppState();
   const sync = useSync();
   const [showNonGroup, setShowNonGroup] = React.useState(false);
   const [showArchived, setShowArchived] = React.useState(false);
+  const [addMenuOpen, setAddMenuOpen] = React.useState(false);
 
   React.useLayoutEffect(() => {
     navigation.setOptions({
@@ -135,128 +161,142 @@ export default function GroupsScreen({ navigation }: Props) {
 
   const openGroup = (groupId: string) => navigation.navigate('GroupDetail', { groupId });
   const newGroup = () => navigation.navigate('GroupEdit');
+  const joinGroup = () => navigation.navigate('JoinGroup');
   const importGroup = () => navigation.navigate('ImportSplitwise');
-  // Hidden (the app looks as before) when this build has no shared-groups server.
-  const joinButton =
-    sync.status !== 'off' ? (
-      <Button
-        title="Join a group"
-        icon="enter-outline"
-        variant="ghost"
-        onPress={() => navigation.navigate('JoinGroup')}
-        fullWidth
-        style={styles.importGroup}
-        accessibilityLabel="Join a shared group with a code"
-        testID="groups-join"
-      />
-    ) : null;
+  const openChoice = (choice: AddGroupChoice) => {
+    if (choice === 'new') newGroup();
+    else if (choice === 'join') joinGroup();
+    else importGroup();
+  };
+  // Join is hidden (the app looks as before) when this build has no shared-groups server.
+  const canJoin = sync.status !== 'off';
+
+  // Rendered at the same place in both layouts, so a synced change that empties the list while
+  // the menu is open can't unmount it with addMenuOpen still true (it would pop up again later).
+  const addSheet = (
+    <AddGroupSheet visible={addMenuOpen} canJoin={canJoin} onClose={() => setAddMenuOpen(false)} onChoose={openChoice} />
+  );
 
   if (rows.current.length === 0 && rows.archived.length === 0 && nonGroup.entries.length === 0) {
+    // Reached after Settings > Clear all data (a fresh install starts with the demo groups).
+    // With nothing to list, all three actions stay in view instead of behind the menu.
     return (
-      <Screen>
-        <EmptyState
-          icon="people-outline"
-          title="No groups yet"
-          message="Create a group for a trip, your home or anything you share, then add expenses and scan bills to split them."
-          actionTitle="Start a new group"
-          onAction={newGroup}
-        />
-        {joinButton}
-        <Button title="Import from Splitwise" icon="download-outline" variant="ghost" onPress={importGroup} fullWidth testID="groups-import" />
-      </Screen>
+      <>
+        <Screen contentStyle={styles.emptyScreen}>
+          <EmptyState
+            icon="people-outline"
+            title="No groups yet"
+            message="Create a group for a trip, your home or anything you share, then add expenses and scan bills to split them."
+            actionTitle="Start a new group"
+            onAction={newGroup}
+            style={styles.emptyState}
+          />
+          {canJoin ? (
+            <Button
+              title={JOIN_GROUP_TITLE}
+              icon="enter-outline"
+              variant="ghost"
+              onPress={joinGroup}
+              fullWidth
+              style={styles.emptyAction}
+              accessibilityLabel="Join a shared group with a code"
+              testID="groups-join"
+            />
+          ) : null}
+          <Button
+            title={IMPORT_GROUP_TITLE}
+            icon="download-outline"
+            variant="ghost"
+            onPress={importGroup}
+            fullWidth
+            style={styles.emptyAction}
+            accessibilityLabel="Import an existing group from a Splitwise export"
+            testID="groups-import"
+          />
+        </Screen>
+        {addSheet}
+      </>
     );
   }
 
   return (
-    <Screen contentStyle={styles.bottomRoom}>
-      <OverallCard summary={summary} />
+    <>
+      <Screen contentStyle={styles.bottomRoom}>
+        <OverallCard summary={summary} />
 
-      <SectionHeader title="Groups" />
-      {rows.current.length > 0 ? (
-        <ListCard dividerInset={ROW_DIVIDER_INSET}>
-          {rows.current.map((row) => (
-            <GroupRow key={row.group.id} row={row} onPress={() => openGroup(row.group.id)} />
-          ))}
-        </ListCard>
-      ) : (
-        <Card>
-          <AppText variant="caption">No active groups. Start one below, or open an archived group.</AppText>
-        </Card>
-      )}
-
-      <Button
-        title="Start a new group"
-        icon="people-outline"
-        variant="outline"
-        onPress={newGroup}
-        fullWidth
-        style={styles.newGroup}
-      />
-      {joinButton}
-      <Button
-        title="Import from Splitwise"
-        icon="download-outline"
-        variant="ghost"
-        onPress={importGroup}
-        fullWidth
-        style={styles.importGroup}
-        testID="groups-import"
-      />
-
-      {nonGroup.entries.length > 0 ? (
-        <View style={styles.section}>
-          <ListCard>
-            <Pressable
-              onPress={() => setShowNonGroup((v) => !v)}
-              accessibilityRole="button"
-              accessibilityState={{ expanded: showNonGroup }}
-              accessibilityLabel={`Non-group expenses, ${balanceSentence(nonGroup.balance)}`}
-              style={({ pressed }) => [styles.row, pressed && styles.pressed]}
-            >
-              <IconTile icon="receipt-outline" size={AVATAR_SIZE} color={colors.textMuted} />
-              <View style={styles.rowMiddle}>
-                <AppText weight="semibold" numberOfLines={2}>
-                  Non-group expenses
-                </AppText>
-                <RowBalance amounts={nonGroup.balance} emptyLabel="settled up" />
-                <AppText variant="caption" numberOfLines={1}>
-                  {plural(nonGroup.entries.length, 'entry', 'entries')} with friends
-                </AppText>
-              </View>
-              <Icon name={showNonGroup ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textFaint} />
-            </Pressable>
+        <SectionHeader title="Groups" />
+        {rows.current.length > 0 ? (
+          <ListCard dividerInset={ROW_DIVIDER_INSET}>
+            {rows.current.map((row) => (
+              <GroupRow key={row.group.id} row={row} onPress={() => openGroup(row.group.id)} />
+            ))}
           </ListCard>
-          {showNonGroup ? (
-            <TimelineList
-              state={state}
-              entries={nonGroup.entries}
-              onPressExpense={(expenseId) => navigation.navigate('ExpenseDetail', { expenseId })}
-              onPressPayment={(paymentId) => navigation.navigate('PaymentDetail', { paymentId })}
-            />
-          ) : null}
-        </View>
-      ) : null}
+        ) : (
+          <Card>
+            <AppText variant="caption">
+              {rows.archived.length > 0 ? 'No active groups. Add one below, or open an archived group.' : 'No groups yet. Add one below.'}
+            </AppText>
+          </Card>
+        )}
 
-      {rows.archived.length > 0 ? (
-        <View style={styles.section}>
-          <Button
-            title={`${showArchived ? 'Hide' : 'Show'} archived groups (${rows.archived.length})`}
-            icon={showArchived ? 'chevron-up' : 'chevron-down'}
-            variant="ghost"
-            size="sm"
-            onPress={() => setShowArchived((v) => !v)}
-            style={styles.archivedToggle}
-          />
-          {showArchived ? (
-            <ListCard dividerInset={ROW_DIVIDER_INSET}>
-              {rows.archived.map((row) => (
-                <GroupRow key={row.group.id} row={row} onPress={() => openGroup(row.group.id)} />
-              ))}
+        <AddGroupRow canJoin={canJoin} onPress={() => setAddMenuOpen(true)} />
+
+        {nonGroup.entries.length > 0 ? (
+          <View style={styles.section}>
+            <ListCard>
+              <Pressable
+                onPress={() => setShowNonGroup((v) => !v)}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: showNonGroup }}
+                accessibilityLabel={`Non-group expenses, ${balanceSentence(nonGroup.balance)}`}
+                style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+              >
+                <IconTile icon="receipt-outline" size={AVATAR_SIZE} color={colors.textMuted} />
+                <View style={styles.rowMiddle}>
+                  <AppText weight="semibold" numberOfLines={2}>
+                    Non-group expenses
+                  </AppText>
+                  <RowBalance amounts={nonGroup.balance} emptyLabel="settled up" />
+                  <AppText variant="caption" numberOfLines={1}>
+                    {plural(nonGroup.entries.length, 'entry', 'entries')} with friends
+                  </AppText>
+                </View>
+                <Icon name={showNonGroup ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textFaint} />
+              </Pressable>
             </ListCard>
-          ) : null}
-        </View>
-      ) : null}
-    </Screen>
+            {showNonGroup ? (
+              <TimelineList
+                state={state}
+                entries={nonGroup.entries}
+                onPressExpense={(expenseId) => navigation.navigate('ExpenseDetail', { expenseId })}
+                onPressPayment={(paymentId) => navigation.navigate('PaymentDetail', { paymentId })}
+              />
+            ) : null}
+          </View>
+        ) : null}
+
+        {rows.archived.length > 0 ? (
+          <View style={styles.section}>
+            <Button
+              title={`${showArchived ? 'Hide' : 'Show'} archived groups (${rows.archived.length})`}
+              icon={showArchived ? 'chevron-up' : 'chevron-down'}
+              variant="ghost"
+              size="sm"
+              onPress={() => setShowArchived((v) => !v)}
+              style={styles.archivedToggle}
+            />
+            {showArchived ? (
+              <ListCard dividerInset={ROW_DIVIDER_INSET}>
+                {rows.archived.map((row) => (
+                  <GroupRow key={row.group.id} row={row} onPress={() => openGroup(row.group.id)} />
+                ))}
+              </ListCard>
+            ) : null}
+          </View>
+        ) : null}
+      </Screen>
+      {addSheet}
+    </>
   );
 }
 
@@ -286,8 +326,29 @@ const styles = themed((colors) => StyleSheet.create({
   bottomRoom: { paddingBottom: spacing.xxl + spacing.sm },
   rowMeta: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   shrink: { flexShrink: 1 },
-  newGroup: { marginTop: spacing.lg },
-  importGroup: { marginTop: spacing.xs },
+  addRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    minHeight: 52,
+    marginTop: spacing.md,
+    paddingVertical: spacing.md,
+    paddingLeft: spacing.md,
+    paddingRight: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  // The row sits on the screen background, so the shared `pressed` colour would not show here.
+  addRowPressed: { backgroundColor: colors.pressed },
+  // The hint gives way first on a narrow phone ('New · Join · Imp…'); at very large text sizes
+  // the title then wraps instead of pushing the chevron out of the row.
+  addTitle: { flexShrink: 1 },
+  addHint: { flex: 1, minWidth: 0, textAlign: 'right' },
+  // The empty tab centres the message and its three actions as one block.
+  emptyScreen: { flexGrow: 1, justifyContent: 'center' },
+  emptyState: { flexGrow: 0, paddingBottom: spacing.md },
+  emptyAction: { marginTop: spacing.xs },
   section: { marginTop: spacing.lg },
   archivedToggle: { alignSelf: 'center' },
 }));

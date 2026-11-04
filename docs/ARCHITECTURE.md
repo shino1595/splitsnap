@@ -475,7 +475,7 @@ BalanceText({ amounts: CurrencyAmounts, perspective: 'me' | { name: string }, si
 EmptyState({ icon: string, title: string, message?: string, actionTitle?: string, onAction? })
 SectionHeader({ title, right?: ReactNode, style? })
 Divider({ inset?: number })
-Sheet({ visible, onClose, title?, children, footer? })          // bottom sheet using RN Modal (transparent, slide)
+Sheet({ visible, onClose, title?, children, footer?, scroll?, onClosed? })   // bottom sheet using RN Modal (transparent, slide); onClosed runs once the sheet is gone: open the next screen there
 OptionPicker<T>({ visible, onClose, title, options: { value: T; label: string; subtitle?: string; icon?: string; left?: ReactNode }[], selected?: T, onSelect: (v: T) => void, searchable? })   // Sheet with a list
 DateField({ label?, value: ISODate, onChange: (d: ISODate) => void })   // tap → Sheet with month calendar grid + Today/Yesterday shortcuts
 Fab({ icon?: string = 'add', label?: string, onPress, style? })
@@ -516,7 +516,7 @@ dynamic.
 
 | Route | File | Purpose |
 |---|---|---|
-| Tabs › Groups | `screens/groups/GroupsScreen.tsx` | Overall balance card (`overallSummary`), list of groups with my balance per group + avatars, "Non-group expenses" row, "Start a new group" button, search icon in header → Search |
+| Tabs › Groups | `screens/groups/GroupsScreen.tsx` | Overall balance card (`overallSummary`), list of groups with my balance per group + avatars, "Non-group expenses" row, "Add a group" row (hint "New · Join · Import"; Join only when sync is configured) that opens `components/AddGroupSheet.tsx` (a `Sheet` with Start a new group → GroupEdit, Join a group → JoinGroup, Import an existing group → ImportSplitwise; the screen opens from `Sheet.onClosed`, after the sheet is gone, because iOS cannot present a modal while another is fading out). Option texts and the hint live in `addGroupMenu.ts` (also used by Settings and the invite message). With no groups at all: EmptyState "Start a new group" plus Join a group and Import an existing group buttons. Search icon in header → Search |
 | Tabs › Friends | `screens/friends/FriendsScreen.tsx` | Overall balance, filter chips (All / Owe you / You owe / Settled), friends with `friendBalance`, "Add friend" |
 | Tabs › Activity | `screens/activity/ActivityScreen.tsx` | Feed grouped by day, icon per type, amount impact for me, tap → ExpenseDetail / PaymentDetail / GroupDetail |
 | Tabs › Account | `screens/account/AccountScreen.tsx` | Your name/email (edit), default currency, link to Settings, stats (groups, friends, expenses), app info |
