@@ -11,7 +11,7 @@
 // row below and with the row above — and the reading whose sums reconcile wins.
 import { currencyDecimals, formatMoney, toMinor } from '../lib/money';
 import type { ChargeKind, CurrencyCode, Minor } from '../types';
-import { canBeQty, consistent, interpretAmounts } from './itemAmounts';
+import { canBeQty, consistent, interpretAmounts, type AmountReading } from './itemAmounts';
 import { detectCurrency, detectDate, isMonthFirstCurrency } from './receiptMeta';
 import { analyzeRow, letterCount, needsAmount, type Row } from './rowClassifier';
 import type { NumberToken } from './tokens';
@@ -29,6 +29,10 @@ interface DraftItem {
   confidence: number;
   sources: string[];
   lastRow: number;
+  /** Readings with misread digits fixed (see interpretAmounts), for the subtotal check. */
+  alternatives: AmountReading[];
+  /** Misread digits on its row were fixed to make qty × rate = amount. */
+  repaired: boolean;
 }
 
 interface DraftCharge {
@@ -250,6 +254,8 @@ function walk(rows: Row[], start: number, end: number, mode: Mode): WalkResult {
       confidence: clamp01(read.confidence - (merged ? 0.05 : 0) - (plainAmount ? 0.05 : 0)),
       sources,
       lastRow,
+      alternatives: read.alternatives,
+      repaired: read.repaired,
     });
   };
 
@@ -391,6 +397,114 @@ function collectCharges(rows: Row[], w: WalkResult, limit: number, hasTotal: boo
   return drafts.sort((a, b) => a.row - b.row);
 }
 
+/** A switch to a misread reading may close a gap of at most this share of the target (larger
+ *  gaps are a missing line, not a misread digit; such switches are named in a note anyway).
+ *  Going back to a printed amount may close any. */
+const MAX_RECONCILE_SHARE = 0.05;
+/** Ways to close the gap whose costs differ by less than this are equally likely: switch nothing. */
+const RECONCILE_TIE = 0.25;
+/** Confidence of a row repaired on its own once the bill adds up (no 'Please check' on review),
+ *  and at most UNCONFIRMED_REPAIR while it doesn't ('Please check'). */
+const CONFIRMED_REPAIR = 0.8;
+const UNCONFIRMED_REPAIR = 0.65;
+/** Confidence of a row switched to another reading to match the bill (review asks to check it). */
+const SWITCHED_READING = 0.6;
+
+/** What the items should add up to: the printed subtotal (exactly), or the printed total minus
+ *  the charges (within the rounding of a bill rounded to a whole rupee). */
+interface Target {
+  value: Minor;
+  tolerance: Minor;
+  /** For the note that names the lines changed to match it. */
+  label: 'subtotal' | 'total';
+}
+
+/**
+ * Rows whose printed numbers did not multiply out were repaired on their own (interpretAmounts);
+ * their other readings, including the amount as printed, are kept as alternatives. When the items
+ * miss the bill's sums, switch one or two of those rows to the readings that close the gap, if
+ * there is a single clearly cheapest way to do it ('199.00 189.00' repaired to 199 goes back to
+ * 189 when the total says so). Nothing changes when the items already fit any target — a misread
+ * subtotal is not a reason to change items that match the total — and rows that multiply out as
+ * printed are never changed: a gap then means a missing line, and its warning must stay.
+ * Returns a note naming the lines given an amount the bill doesn't print, so a lost line that a
+ * switch happened to cover can't go unnoticed.
+ */
+function reconcileItems(items: DraftItem[], targets: Target[], loose: Minor, currency: CurrencyCode): string | undefined {
+  const minor = (v: number) => toMinor(v, currency);
+  const current = sum(items.map((d) => minor(d.amount)));
+  const fits = (value: Minor) => targets.some((t) => Math.abs(t.value - value) <= t.tolerance);
+  // Amounts whose names were lost (orphanItems) that close the gap explain it better than a switch.
+  if (!targets.length || fits(current) || (loose !== 0 && fits(current + loose))) return undefined;
+
+  interface Switch {
+    item: number;
+    reading: AmountReading;
+    delta: number;
+  }
+  const switches: Switch[] = [];
+  items.forEach((d, item) => {
+    for (const reading of d.alternatives) switches.push({ item, reading, delta: minor(reading.amount) - minor(d.amount) });
+  });
+  if (!switches.length) return undefined;
+
+  for (const target of targets) {
+    const gap = target.value - current;
+    const cap = Math.abs(target.value) * MAX_RECONCILE_SHARE;
+    const sets: Switch[][] = [];
+    const fits = (set: Switch[]) =>
+      Math.abs(gap - sum(set.map((s) => s.delta))) <= target.tolerance && (set.every((s) => s.reading.printed) || Math.abs(gap) <= cap);
+    for (let i = 0; i < switches.length; i++) {
+      if (fits([switches[i]])) sets.push([switches[i]]);
+      for (let j = i + 1; j < switches.length; j++) {
+        if (switches[j].item !== switches[i].item && fits([switches[i], switches[j]])) sets.push([switches[i], switches[j]]);
+      }
+    }
+    if (!sets.length) continue;
+    const cost = (set: Switch[]) => sum(set.map((s) => s.reading.cost));
+    sets.sort((a, b) => cost(a) - cost(b));
+    if (sets.length > 1 && cost(sets[1]) - cost(sets[0]) < RECONCILE_TIE) return undefined;
+    const unprinted: string[] = [];
+    for (const s of sets[0]) {
+      const d = items[s.item];
+      d.amount = s.reading.amount;
+      d.quantity = s.reading.quantity;
+      d.unitPrice = s.reading.unitPrice;
+      // Chosen to make the sum come out, so the row itself is not confirmed: keep 'Please check'.
+      d.confidence = Math.min(d.confidence, SWITCHED_READING);
+      d.repaired = false;
+      if (!s.reading.printed) unprinted.push(d.name);
+    }
+    if (!unprinted.length) return undefined;
+    const names = unprinted.length === 1 ? unprinted[0] : `${unprinted[0]} and ${unprinted[1]}`;
+    const them = unprinted.length === 1 ? 'it' : 'them';
+    return `The items didn't add up to the bill's ${target.label} as read, so ${names} ${unprinted.length === 1 ? 'was' : 'were'} changed to match. Check ${them} against the bill.`;
+  }
+  return undefined;
+}
+
+/** Targets for reconcileItems: the subtotal (and the subtotal less charges printed above it), then
+ *  the total less every charge, when all charges have printed amounts. */
+function reconcileTargets(rows: Row[], w: WalkResult, limit: number, totalRow: number, subtotalRow: number, currency: CurrencyCode): Target[] {
+  const targets: Target[] = [];
+  const drafts = collectCharges(rows, w, limit, totalRow >= 0);
+  const minorSum = (list: DraftCharge[]) => sum(list.map((d) => toMinor(d.value as number, currency)));
+  if (subtotalRow >= 0) {
+    const subtotal = toMinor((w.amounts.get(subtotalRow) as NumberToken).value, currency);
+    targets.push({ value: subtotal, tolerance: 0, label: 'subtotal' });
+    const above = drafts.filter((d) => d.row < subtotalRow && d.value !== undefined);
+    if (above.length) targets.push({ value: subtotal - minorSum(above), tolerance: 0, label: 'subtotal' });
+  }
+  if (totalRow >= 0 && drafts.every((d) => d.value !== undefined)) {
+    const total = toMinor((w.amounts.get(totalRow) as NumberToken).value, currency);
+    const unit = Math.pow(10, currencyDecimals(currency));
+    const rounded = unit > 1 && total % unit === 0 && !drafts.some((d) => d.kind === 'roundoff');
+    // Below half a unit: a gap of exactly 0.50 is a real difference (a $0.50 discount), not rounding.
+    targets.push({ value: total - minorSum(drafts), tolerance: rounded ? Math.ceil(unit / 2) - 1 : 0, label: 'total' });
+  }
+  return targets;
+}
+
 /** Loose amounts in the item section whose names were lost: kept only when they close the gap to the total exactly. */
 function orphanItems(rows: Row[], w: WalkResult, known: Minor, total: Minor, limit: number, currency: CurrencyCode): ParsedItem[] {
   const orphans = w.orphans.filter((i) => i < limit);
@@ -412,6 +526,8 @@ function assemble(rows: Row[], w: WalkResult, currency: CurrencyCode): ParsedRec
       w.keywordRows.find((i) => rows[i].kind === 'total' && i < totalRow && w.amounts.has(i) && toMinor(amountAt(i).value, currency) < total) ?? -1;
   }
   const subtotal = subtotalRow >= 0 ? toMinor(amountAt(subtotalRow).value, currency) : undefined;
+  const looseAmounts = sum(w.orphans.filter((i) => i < limit).map((i) => toMinor((rows[i].amount as NumberToken).value, currency)));
+  const changedNote = reconcileItems(w.items, reconcileTargets(rows, w, limit, totalRow, subtotalRow, currency), looseAmounts, currency);
 
   const items: ParsedItem[] = w.items.map((d) => ({
     name: d.name,
@@ -451,12 +567,14 @@ function assemble(rows: Row[], w: WalkResult, currency: CurrencyCode): ParsedRec
 
   // Bills rounded to a whole rupee/dollar without printing the round-off line.
   const unit = Math.pow(10, currencyDecimals(currency));
+  let addedRoundOff = 0;
   if (total !== undefined && unit > 1 && items.length && total % unit === 0 && !charges.some((c) => c.kind === 'roundoff')) {
     const diff = total - computedTotal;
     if (diff !== 0 && Math.abs(diff) * 2 <= unit) {
       charges.push({ kind: 'roundoff', label: 'Round off', amount: diff, sourceLine: '' });
       chargeRows.push(limit);
       computedTotal = total;
+      addedRoundOff = diff;
     }
   }
 
@@ -465,12 +583,23 @@ function assemble(rows: Row[], w: WalkResult, currency: CurrencyCode): ParsedRec
   if (!items.length) {
     warnings.push("Couldn't find any items on this bill. Add them by hand, or retake the photo flat and in good light.");
   }
+  let subtotalAddsUp = false;
   if (subtotal !== undefined && items.length) {
     const beforeSubtotal = itemsSum + sum(charges.filter((_c, k) => chargeRows[k] < subtotalRow).map((c) => c.amount));
-    if (itemsSum !== subtotal && beforeSubtotal !== subtotal) {
+    subtotalAddsUp = itemsSum === subtotal || beforeSubtotal === subtotal;
+    if (!subtotalAddsUp) {
       warnings.push(`Items add up to ${fmt(beforeSubtotal)} but the bill subtotal says ${fmt(subtotal)}`);
     }
   }
+  // Rows whose printed numbers disagreed were repaired on the row itself: the printed subtotal or
+  // total confirms them, and when the bill doesn't add up they are the first lines to check. A
+  // round-off we had to add (not printed) only confirms them when it is a few paise or cents.
+  const addsUp = subtotalAddsUp || (total !== undefined && computedTotal === total && Math.abs(addedRoundOff) * 10 <= unit);
+  w.items.forEach((d, k) => {
+    if (!d.repaired) return;
+    items[k].confidence = addsUp ? Math.max(items[k].confidence, CONFIRMED_REPAIR) : Math.min(items[k].confidence, UNCONFIRMED_REPAIR);
+  });
+  if (changedNote) warnings.push(changedNote);
   if (total !== undefined && computedTotal !== total) {
     warnings.push(`Items and charges add up to ${fmt(computedTotal)} but the bill total says ${fmt(total)}`);
   } else if (total === undefined && items.length) {
@@ -483,18 +612,42 @@ function assemble(rows: Row[], w: WalkResult, currency: CurrencyCode): ParsedRec
 /** How plausible a parse is: sums that reconcile with the printed subtotal/total count most. */
 export function receiptScore(receipt: ParsedReceipt): number {
   const itemsSum = sum(receipt.items.map((i) => i.amount));
+  const miss = (got: number, want: number) => Math.abs(got - want) / Math.max(1, Math.abs(want));
   let score = 0;
+  let adds = false;
   if (receipt.total !== undefined) {
     score += 10;
-    if (receipt.computedTotal === receipt.total) score += 100;
-    else score -= Math.min(60, (Math.abs(receipt.computedTotal - receipt.total) / Math.max(1, Math.abs(receipt.total))) * 100);
+    if (receipt.computedTotal === receipt.total) {
+      score += 100;
+      adds = true;
+    } else {
+      score -= Math.min(100, miss(receipt.computedTotal, receipt.total) * 200);
+    }
   }
   if (receipt.subtotal !== undefined) {
     score += 5;
     const discounts = sum(receipt.charges.filter((c) => c.kind === 'discount').map((c) => c.amount));
-    if (itemsSum === receipt.subtotal || itemsSum + discounts === receipt.subtotal) score += 30;
+    if (itemsSum === receipt.subtotal || itemsSum + discounts === receipt.subtotal) {
+      score += 30;
+      adds = true;
+    } else {
+      score -= Math.min(30, miss(itemsSum, receipt.subtotal) * 100);
+    }
   }
-  score += receipt.items.length * 3;
+  // A totals block that adds up on its own (subtotal + printed charges = total) was read right,
+  // even when an item is missing; a reading that found it beats one that took the subtotal for
+  // the total or found no totals at all.
+  if (receipt.subtotal !== undefined && receipt.total !== undefined) {
+    const printed = sum(receipt.charges.filter((c) => c.sourceLine !== '').map((c) => c.amount));
+    const discounts = sum(receipt.charges.filter((c) => c.sourceLine !== '' && c.kind === 'discount').map((c) => c.amount));
+    const halfUnit = Math.pow(10, currencyDecimals(receipt.currency ?? 'INR')) / 2;
+    const near = (value: number) => Math.abs(value - (receipt.total as number)) <= halfUnit;
+    if (near(receipt.subtotal + printed) || near(receipt.subtotal + printed - discounts)) score += 30;
+  }
+  if (!receipt.items.length) score -= 50;
+  // Every item counts, but far less when the items don't add up to the bill: a reading that
+  // tears rows apart finds more 'items' (each name with a stray quantity as its price).
+  score += receipt.items.length * (adds || (receipt.total === undefined && receipt.subtotal === undefined) ? 3 : 1);
   score += sum(receipt.items.map((i) => i.confidence)) * 2;
   score -= receipt.warnings.length * 5;
   return score;

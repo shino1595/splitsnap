@@ -96,6 +96,14 @@ function canonicalNumber(run: string): string {
   return run;
 }
 
+/** '299.00598.00', '299,00598.00', '649.001947.8': a rate and an amount printed (or read) without
+ *  a space between them. Valid grouped numbers ('1,234.56', '1.234.567,00') are left alone. */
+function splitGluedAmounts(token: string): string {
+  const m = /^(\d{1,7}[.,]\d{2})(\d{1,7}[.,]\d{1,2})$/.exec(token);
+  if (!m || canonicalNumber(token) !== token) return token;
+  return `${m[1]} ${m[2]}`;
+}
+
 /** 'O'/'o' → 0 and 'l'/'I' → 1 inside number-looking tokens ('6O.00', 'l20.00', '1OO'). */
 function fixDigitConfusions(token: string): string {
   const m = /^([-(]?)([0-9OolI]+(?:[.,][0-9OolI]{1,2})?)([%)]?)$/.exec(token);
@@ -130,9 +138,11 @@ export function normalizeLine(line: string): string {
   s = s.replace(/(^|\s)(\d{1,3}), (\d{3}\.\d{2})(?=\s|$)/g, '$1$2,$3');
   // 'CGST2.5%' → 'CGST 2.5%'.
   s = s.replace(/([A-Za-z])(\d+(?:\.\d+)?%)/g, '$1 $2');
+  // '1047.g': a decimal digit read as 'g' (a 9, or the last 0 printed over the paper's edge).
+  s = s.replace(/(\d{2}[.,])[gq](?=\s|$)/g, '$19');
   s = s
     .split(' ')
-    .map(fixDigitConfusions)
+    .map((token) => splitGluedAmounts(fixDigitConfusions(token)))
     .join(' ');
   s = s.replace(/\d[\d.,]*\d/g, canonicalNumber);
 

@@ -104,6 +104,17 @@ Reading the text is done by **OCR.space**, a free online service. Your photo is 
 the items, quantities, prices, taxes and the printed total. You can check and edit everything on
 the review screen before splitting.
 
+- **Long bills:** fold or cut the bill and lay the pieces side by side in one photo, top part on
+  the left. SplitSnap finds the pieces and reads them in order; text on other paper next to the
+  bill (a card, a cheque) is ignored.
+- **Misread digits:** receipt printers' 9s often come back as 8s, and a last digit printed over
+  the paper's edge comes back as 8 or g. When a line's quantity × rate doesn't match its amount,
+  SplitSnap tries the likely misreads, keeps the printed amount when the rate may as well be the
+  misread number, and checks everything against the printed subtotal and total. Lines it isn't
+  sure about say **Please check**, and a note under the totals names any line it changed to match
+  them. Lines that already add up are never changed, so a line the photo missed still shows up
+  as a totals warning.
+
 Which key a scan uses (the first one that exists):
 
 1. **Your own free key:** get one in a minute at

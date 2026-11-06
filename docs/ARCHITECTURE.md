@@ -261,11 +261,32 @@ export class OcrError extends Error { code: 'network' | 'quota' | 'too_large' | 
 
 ### ocr/lineBuilder.ts (pure)
 ```ts
-/** Rebuild visual rows from OCR.space TextOverlay lines/words: group words whose vertical
- *  centres are within ~0.6× median word height, sort each row by x, join with ' ' and use
- *  '  ' (two spaces) where the horizontal gap is large (column break). Rows top→bottom. */
+/** Rebuild visual rows from OCR.space TextOverlay lines/words: find the strips of a bill cut in
+ *  pieces, then in each strip group words whose vertical centres are within ~0.6× median word
+ *  height, sort each row by x, join with ' ' and use '  ' (two spaces) where the horizontal gap is
+ *  large (column break). Rows top→bottom, strip after strip. */
 export function buildRows(lines: OcrLine[]): string[];
 ```
+- **Strips.** A long bill is often photographed cut or folded into strips lying side by side.
+  The page is cut at an empty vertical band (straight or leaning up to ~7°) only when both sides
+  are receipts of their own (≥ 2 priced lines each, judged by the parser's row classifier: an
+  item, charge or total ending in a price, not 'Paneer Tikka  2', 'Rice  1006  2' or 'Table: 7')
+  and reading them apart breaks none of those lines (lines whose qty × rate = amount count twice,
+  so a cut through a price column loses). Each side is judged at its own coarsely refined tilt.
+  Strips are read left to right, except that the strip with the column titles comes first and
+  the one with the totals last; other paper in the photo (no prices, or at most 3 item lines next
+  to a strip with four times as many: a card slip, a parking ticket) comes after the whole bill,
+  where its total can't end the bill's items early.
+- **Tilt.** Estimated from multi-word lines, refined by lining side-by-side pieces up; on a tall
+  strip it is measured again in overlapping bands because a curled bill tilts more towards the
+  camera. The bands follow the tilt outwards from the middle, each within 0.03 of the band next
+  to it: with evenly spaced rows a false tilt that pairs every price with the next row fits a band
+  as well as the true one, but it lies ~0.1 away.
+- **Text beside the bill** (a cheque or card under it): pieces starting more than 1.5 word heights
+  right of the price column go after all rows, where the parser no longer looks for items. The
+  column is a Theil–Sen line through the last price of each priced line, used only when ≥ 4
+  lines give one and most lie on it. Flags after a price ('N', 'T', 'Cr', 'INR', '5%') stay.
+- The tilt search only compares pieces that can share a row, so it grows linearly with the bill.
 
 ### ocr/receiptParser.ts (pure — the heart of scanning; heavily unit-tested)
 ```ts
@@ -282,7 +303,23 @@ charges (kind 'other'), tips, `Sub Total`/`Subtotal`, `Grand Total`/`Total`/`Net
 `Amount Payable`/`Bill Amount`, ignoring header/footer noise (GSTIN, FSSAI, Bill No, Table,
 Cover, Cashier, Date/Time lines, phone numbers, `Thank you`, URLs, `Qty: 7`-style summary lines),
 US/EU receipts (`$` and `€`, `1.234,56` decimal comma), totals with currency symbols, lines
-where qty × rate ≠ amount (keep amount, lower confidence). Currency detection from symbols
+where qty × rate ≠ amount (keep amount, lower confidence), rate and amount printed without a
+space (`299.00598.00`), and misread digits: when qty × rate ≠ amount, readings with one misread
+digit per number (9 read as 8 is the commonest on thermal paper) or a last decimal lost over the
+paper's edge (`1947.8`, `1047.g`) are tried, and the cheapest one that multiplies out wins. A
+misread in the amount costs more than one in the rate, because the amount is what the subtotal
+adds up ('1 199.00 189.00' keeps 189); a weight is never the price, and a price over 99 next to
+a whole count is never the quantity. Repaired lines keep their other readings and the printed
+amount: when the items miss the subtotal, the subtotal less charges above it, or the total less
+all charges, the single clearly cheapest switch of one or two repaired lines that closes the gap
+is made, those lines ask to be checked, and a note on the review screen names any line given an
+amount the bill doesn't print. Nothing changes when the items already fit one of those sums (or
+fit with the amounts whose names were lost), and a line that multiplies out as printed is never
+changed: a gap then means a lost line, and the warnings stay. Repaired lines ask to be checked
+whenever the bill doesn't add up (a round-off we had to add only counts as adding up when it is
+under a tenth of a unit). Of two readings (word boxes vs OCR.space's own text), one whose
+subtotal + charges = total wins over one that found no items or took the subtotal for the
+total. Currency detection from symbols
 (₹/Rs/INR, $, €, £, S$, AED, …) else currencyHint else 'INR'. Merchant = first meaningful
 line near the top. Date = first date-like token (dd/mm/yyyy, dd-mm-yy, yyyy-mm-dd, 'Oct 3, 2026').
 Never throws.

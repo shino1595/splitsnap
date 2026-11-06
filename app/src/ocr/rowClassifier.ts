@@ -185,7 +185,11 @@ const CHARGE_RULES: { kind: ChargeKind; re: RegExp }[] = [
   { kind: 'roundoff', re: /\b(round\s*-?\s*off|rounding(\s*(off|adj\w*))?|round(ed)?\s*(adj\w*|amount|amt)|r\s*\/\s*off|rnd\s*off|roff)\b/ },
   { kind: 'discount', re: /\b(discount|disc|coupon|promo\w*|voucher|savings?|cashback|deduction|loyalty|redeem\w*|less\s*:|offer\s*discount|markdown)\b/ },
   { kind: 'tax', re: /\b(service\s*tax|(c|s|i|ut)\s*-?\s*gst|gst|vat|tax(es)?|cess|kkc|sbc|hst|pst|qst|mwst|iva|tva|excise)\b/ },
-  { kind: 'service', re: /(\bservice\s*(charge|chg|chrg|fee)s?\b|\bsvc\s*(charge|chg)?\b|\bserv\s*(charge|chg)\b|\bs\s*\.\s*c\s*\.?(?=\s|$|@|\d)|^sc\b)/ },
+  // 'Staff Welfare @5.0%': what some Indian restaurants call their service charge.
+  {
+    kind: 'service',
+    re: /(\bservice\s*(charge|chg|chrg|fee)s?\b|\bsvc\s*(charge|chg)?\b|\bserv\s*(charge|chg)\b|\bs\s*\.\s*c\s*\.?(?=\s|$|@|\d)|^sc\b|\bstaff\s*welfare\b)/,
+  },
   { kind: 'tip', re: /\b(tip|tips|gratuity|grat)\b/ },
   {
     kind: 'other',

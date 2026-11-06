@@ -43,6 +43,36 @@ export function columnLines(rows: [string, number][][], style: PageStyle & { top
   return columns.flatMap((x) => cells.filter((c) => c.x === x).map((c) => c.line));
 }
 
+export interface StripStyle extends PageStyle {
+  /** x of the strip's left edge on the photo. */
+  left?: number;
+  top?: number;
+  rowHeight?: number;
+  /** Extra tilt reached at the last row (paper curling up towards the camera). */
+  curl?: number;
+}
+
+/**
+ * One strip of a long bill laid on the table: like columnLines (every cell is its own OCR line),
+ * placed at `left`, tilted around its left edge by `tilt`, and by more and more further down when
+ * `curl` is set. Cells are [text, x from the strip's left edge].
+ */
+export function stripLines(rows: [string, number][][], style: StripStyle = {}): OcrLine[] {
+  const left = style.left ?? 0;
+  const top = style.top ?? 100;
+  const rowHeight = style.rowHeight ?? 36;
+  const out: OcrLine[] = [];
+  rows.forEach((row, r) => {
+    const tilt = (style.tilt ?? 0) + (rows.length > 1 ? ((style.curl ?? 0) * r) / (rows.length - 1) : 0);
+    for (const [text, x] of row) {
+      if (!text.trim()) continue;
+      const line = makeLine(text, left + x, top + r * rowHeight, { ...style, tilt: 0 });
+      out.push({ text: line.text, words: line.words.map((w) => ({ ...w, top: Math.round(w.top + tilt * (w.left - left)) })) });
+    }
+  });
+  return out;
+}
+
 /** Like OCR.space engine 3: every line comes back as a single box covering all its words. */
 export function singleBoxes(lines: OcrLine[]): OcrLine[] {
   return lines.map((line) => {
