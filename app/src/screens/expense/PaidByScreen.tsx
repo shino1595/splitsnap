@@ -83,7 +83,7 @@ export default function PaidByScreen({ navigation }: Props) {
       <Screen keyboard contentStyle={styles.content} footer={<StatusFooter status={status} onDone={done} />} testID="paid-by-multiple">
         <View style={styles.summary}>
           <AppText variant="caption">Total</AppText>
-          <AppText variant="title">{total !== null ? money(total) : '—'}</AppText>
+          <AppText variant="title" plain>{total !== null ? money(total) : '—'}</AppText>
           <AppText variant="caption">Enter how much each person paid</AppText>
         </View>
         {total === null ? (

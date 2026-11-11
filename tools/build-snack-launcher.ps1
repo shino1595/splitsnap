@@ -69,7 +69,7 @@ if (-not (Test-Path -LiteralPath $appDir)) {
 # asking Snack to build it from npm fails ("Failed to resolve dependency react-native-screens@~4.23.0").
 $dependencies = '@react-navigation/native@7.5.0,@react-navigation/native-stack@7.20.0,@react-navigation/bottom-tabs@7.20.0,' +
     'react-native-safe-area-context,@react-native-async-storage/async-storage,' +
-    'expo-image-picker,expo-image-manipulator,expo-document-picker,@expo/vector-icons,' +
+    'expo-image-picker,expo-image-manipulator,expo-document-picker,expo-font,@expo/vector-icons,' +
     '@supabase/supabase-js,react-native-url-polyfill'
 
 # Snack's SDK 56 runtime still ships a preview `expo` package. expo-image-picker 56.0.7+ imports
@@ -88,7 +88,7 @@ $emptied = New-Object Collections.Generic.List[string]
 # make Snack switch SDK or entry point, so they stay out of the Snack.
 $expoProjectFiles = @('package.json', 'package-lock.json', 'app.json', 'eas.json', 'index.js', 'tsconfig.json', 'babel.config.js', 'metro.config.js')
 $all = Get-ChildItem -LiteralPath $appDir -Recurse -File |
-    Where-Object { $_.FullName -notmatch '[\\/](node_modules|\.[^\\/]+)[\\/]' -and $_.Name -notlike '.*' } |
+    Where-Object { $_.FullName.Substring((Resolve-Path -LiteralPath $appDir).Path.Length) -notmatch '[\\/](node_modules|\.[^\\/]+)[\\/]' -and $_.Name -notlike '.*' } |
     Where-Object { -not ($_.DirectoryName -eq $appDir -and $expoProjectFiles -contains $_.Name) } |
     Sort-Object FullName
 foreach ($f in $all) {

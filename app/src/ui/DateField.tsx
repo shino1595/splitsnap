@@ -132,7 +132,7 @@ export function DateField({ label, value, onChange, style, testID }: DateFieldPr
                   >
                     <AppText
                       weight={selected || isToday ? 'semibold' : 'regular'}
-                      color={selected ? colors.white : isToday ? colors.primaryDark : colors.text}
+                      color={selected ? colors.onPrimaryFill : isToday ? colors.primaryDark : colors.text}
                     >
                       {Number(iso.slice(8))}
                     </AppText>
@@ -172,6 +172,6 @@ const styles = themed((colors) => StyleSheet.create({
   cell: { width: CELL_WIDTH, height: 46, alignItems: 'center', justifyContent: 'center' },
   day: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   dayToday: { borderWidth: 1.5, borderColor: colors.primary },
-  daySelected: { backgroundColor: colors.primary, borderColor: colors.primary },
+  daySelected: { backgroundColor: colors.primaryFill, borderColor: colors.primaryFill },
   dayPressed: { backgroundColor: colors.primarySoft },
 }));

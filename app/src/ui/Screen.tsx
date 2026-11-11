@@ -10,6 +10,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { colors, spacing, themed } from '../theme';
+import { Backdrop } from './Backdrop';
 import { Fab } from './Fab';
 import { FloatingBottomContext, useUncoveredBottomInset } from './floating';
 import { LoadingOverlay } from './LoadingOverlay';
@@ -120,6 +121,7 @@ export function Screen({
       onLayout={avoidKeyboard ? measureOffset : undefined}
       testID={testID}
     >
+      <Backdrop />
       {avoidKeyboard ? (
         <KeyboardAvoidingView style={styles.flex} behavior="padding" keyboardVerticalOffset={keyboardOffset}>
           {main}

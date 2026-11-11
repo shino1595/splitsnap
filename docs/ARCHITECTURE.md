@@ -20,7 +20,7 @@ it (new exports are fine) but never change an existing signature.
    `react`, `react-native`, `@react-navigation/native`, `@react-navigation/native-stack`,
    `@react-navigation/bottom-tabs`, `react-native-safe-area-context`, `react-native-screens`,
    `@react-native-async-storage/async-storage`, `expo-image-picker`, `expo-image-manipulator`,
-   `expo-document-picker` (loaded with `import()`, like the photo libraries),
+   `expo-document-picker` and `expo-font` (both loaded with `import()`, like the photo libraries),
    `@supabase/supabase-js` and `react-native-url-polyfill` (shared groups only, loaded with
    `import()` in `src/sync/supabaseClient.ts`; nothing else imports them),
    `@expo/vector-icons` (use **Ionicons** only, with glyph names that exist in Ionicons 7, e.g.
@@ -48,7 +48,7 @@ it (new exports are fine) but never change an existing signature.
 6. Pure logic lives in `src/lib` and `src/ocr` (no React imports there, except
    `src/ocr/imagePrep.ts` and `src/ocr/ocrSpace.ts`, which may import Expo/RN modules).
    Pure modules must not import `react-native` so they can be unit-tested in a browser.
-7. Styling with tokens from `src/theme.ts`, light and dark. Build sheets with `const styles = themed((colors) => StyleSheet.create({...}))` and read `colors.*` only while rendering, never in module-level constants (typecheck rule SPLITSNAP4). The palette is switched in App.tsx from Settings → Appearance (system / light / dark).
+7. Styling with tokens from `src/theme.ts`, light and dark (filled primary surfaces use `primaryFill` / `primaryFillPressed` with `onPrimaryFill` text; `accentLine` is the thin gold rule; `layer1`-`layer3` are the circles behind every screen and `wash` the gold wash on balance cards). Build sheets with `const styles = themed((colors) => StyleSheet.create({...}))` and read `colors.*` only while rendering, never in module-level constants (typecheck rule SPLITSNAP4). The palette is switched in App.tsx from Settings → Appearance (system / light / dark).
 8. Every screen handles empty states and missing records (deleted group/expense → show an
    `EmptyState` and a way back, never crash).
 9. Keep comments sparse and useful. No commented-out code.
@@ -505,7 +505,7 @@ TextField({ label?, value, onChangeText, placeholder?, keyboardType?, multiline?
 AmountField({ value: string, onChangeText, currency: CurrencyCode, onPressCurrency?, autoFocus?, error? })   // big number + tappable currency symbol
 SegmentedControl<T extends string>({ options: { value: T; label: string }[], value: T, onChange: (v: T) => void, scrollable?: boolean })
 SwitchRow({ label, value, onValueChange, description? })
-MoneyText({ amount: Minor, currency, tone?: 'auto'|'owe'|'owed'|'neutral' = 'neutral', variant?, signed?, abs? })   // auto: >0 owed(green), <0 owe(orange)
+MoneyText({ amount: Minor, currency, tone?: 'auto'|'owe'|'owed'|'neutral' = 'neutral', variant?, signed?, abs? })   // auto: >0 owed(gold), <0 owe(rose)
 BalanceText({ amounts: CurrencyAmounts, perspective: 'me' | { name: string }, size?: 'sm'|'md' })
    // perspective 'me': 'you are owed ₹500.00' / 'you owe ₹200.00' / 'settled up' (multi-currency joined with ' + ')
    // perspective {name}: 'Aarav owes you ₹500.00' / 'you owe Aarav ₹200.00' / 'settled up'
@@ -520,6 +520,10 @@ Banner({ tone: 'info'|'warning'|'danger'|'success', title?, message, actionTitle
 Stepper({ value: number, onChange: (n: number) => void, min?: number = 0, max?: number = 99, step?: number = 1 })
 LoadingOverlay({ visible, message? })
 ```
+### ui/Backdrop.tsx, ui/GoldWash.tsx, ui/gradients.ts, ui/fonts.ts
+`Screen` draws `Backdrop` behind its content: a gold glow at the top plus six overlapping circles (`layer1`-`layer3`, two corners; no scrolling, no touches). `GoldWash` is the first child of a balance `Card` (card gets `overflow: 'hidden'`). `gradients.ts` holds the two tiny white alpha PNGs (`GLOW_PNG`, `WASH_PNG`, base64) that `tintColor` colours, since there is no gradient library.
+`fonts.ts` loads Cormorant Garamond Bold (OFL, static TTF from `@expo-google-fonts/cormorant-garamond@0.4.1` via jsDelivr) with `expo-font`: `loadTitleFont()` (called in App.tsx), `useTitleFont()` (re-renders when ready), `useFontSettled()` (App shows its loading screen for at most 2.5 s). Only `AppText` `title` (27, letterSpacing 0.2, no fontWeight; `plain` keeps the system font for values such as amounts) and navigation header titles (22) use it; if loading fails they stay in the system font.
+
 ### ui/dialogs.ts
 ```ts
 export function showAlert(title: string, message?: string): void;                         // web: window.alert
@@ -542,8 +546,8 @@ a centred `ActivityIndicator`.
 
 `src/navigation/RootNavigator.tsx`: native stack `RootStackParamList`, first screen `Tabs`
 (bottom tabs: Groups, Friends, centre **+** (AddTab → `navigation.navigate('AddExpense')`,
-rendered as a raised green circle button), Activity, Account). Header style: white, title
-weight 600, tint `colors.primary`. AddExpense, SplitOptions, PaidBy, ScanBill, ItemizedSplit,
+rendered as a raised round button filled with `primaryFill`), Activity, Account). Header style: `colors.card`, title in Cormorant Garamond Bold (`ui/fonts.ts`, size 22,
+system font weight 600 until it loads), tint `colors.primary`. AddExpense, SplitOptions, PaidBy, ScanBill, ItemizedSplit,
 SettleUp, FriendEdit, GroupEdit are presented as `presentation: 'modal'` (on Android a normal
 push). Tab icons: people-outline, person-outline, (add), pulse-outline, person-circle-outline.
 
@@ -671,7 +675,7 @@ Edge profile). Nothing is installed or written outside the topic folder.
   the app is about 900 KB. Re-run the script after every app change.
 
 Snack dependencies (versions pinned where Snack can't infer them):
-`@react-navigation/native@7.5.0,@react-navigation/native-stack@7.20.0,@react-navigation/bottom-tabs@7.20.0,react-native-screens,react-native-safe-area-context,@react-native-async-storage/async-storage,expo-image-picker,expo-image-manipulator,expo-document-picker,@expo/vector-icons,@supabase/supabase-js,react-native-url-polyfill`
+`@react-navigation/native@7.5.0,@react-navigation/native-stack@7.20.0,@react-navigation/bottom-tabs@7.20.0,react-native-screens,react-native-safe-area-context,@react-native-async-storage/async-storage,expo-image-picker,expo-image-manipulator,expo-document-picker,expo-font,@expo/vector-icons,@supabase/supabase-js,react-native-url-polyfill`
 
 ---------------------------------------------------------------------------------------------
 ## 10. Why Expo SDK 54 (decided 2026-10-16, tested in Snack)

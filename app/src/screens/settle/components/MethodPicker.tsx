@@ -27,8 +27,8 @@ export function MethodPicker({ value, onChange }: MethodPickerProps) {
             testID={`method-${m.value}`}
             style={({ pressed }) => [styles.tile, selected && styles.selected, pressed && !selected && styles.pressed]}
           >
-            <Icon name={m.icon} size={20} color={selected ? colors.white : colors.textMuted} />
-            <AppText variant="label" weight={selected ? 'semibold' : 'medium'} color={selected ? colors.white : colors.text} numberOfLines={1}>
+            <Icon name={m.icon} size={20} color={selected ? colors.onPrimaryFill : colors.textMuted} />
+            <AppText variant="label" weight={selected ? 'semibold' : 'medium'} color={selected ? colors.onPrimaryFill : colors.text} numberOfLines={1}>
               {m.label}
             </AppText>
           </Pressable>
@@ -53,6 +53,6 @@ const styles = themed((colors) => StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.card,
   },
-  selected: { backgroundColor: colors.primary, borderColor: colors.primary },
+  selected: { backgroundColor: colors.primaryFill, borderColor: colors.primaryFill },
   pressed: { backgroundColor: colors.background },
 }));

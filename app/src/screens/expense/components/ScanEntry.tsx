@@ -14,7 +14,7 @@ export function ScanBillCard({ onPress }: { onPress: () => void }) {
       testID="scan-bill"
       style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
     >
-      <IconBadge icon="camera-outline" size={52} color={colors.white} background={colors.primary} />
+      <IconBadge icon="camera-outline" size={52} color={colors.onPrimaryFill} background={colors.primaryFill} />
       <View style={styles.text}>
         <AppText variant="heading">Scan a bill</AppText>
         <AppText variant="caption" style={styles.subtitle}>

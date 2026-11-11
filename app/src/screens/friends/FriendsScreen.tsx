@@ -7,7 +7,7 @@ import { expenseGroupName, friendBalanceByGroup, overallSummary } from '../../st
 import { isSettled } from '../../lib/balances';
 import { formatMoney } from '../../lib/money';
 import { colors, radius, spacing, themed } from '../../theme';
-import { AppText, BalanceText, Button, Card, Chip, Divider, EmptyState, IconButton, Screen, SectionHeader } from '../../ui';
+import { AppText, BalanceText, Button, Card, Chip, Divider, EmptyState, GoldWash, IconButton, Screen, SectionHeader } from '../../ui';
 import { FRIEND_FILTERS, amountLines, filterCounts, friendRows, matchesFilter } from './friendLogic';
 import type { FriendFilter } from './friendLogic';
 import { FriendListRow } from './components/FriendListRow';
@@ -46,19 +46,20 @@ function OverallCard({ owedToMe, iOwe, net, currency, onSettle }: OverallCardPro
   const anything = !isSettled(owedToMe) || !isSettled(iOwe);
   return (
     <Card style={styles.overall}>
+      <GoldWash />
       <AppText variant="caption" weight="semibold" color={colors.textMuted} style={styles.overallLabel}>
         OVERALL
       </AppText>
       <BalanceText amounts={net} perspective="me" />
       <View style={styles.stats}>
         <View style={[styles.stat, { backgroundColor: colors.primarySoft }]}>
-          <AppText variant="caption" color={colors.primaryDark}>
+          <AppText variant="caption" color={colors.primaryDark} style={styles.statLabel}>
             You are owed
           </AppText>
           <StatAmount amounts={owedToMe} zero={zero} color={colors.primaryDark} />
         </View>
         <View style={[styles.stat, { backgroundColor: colors.oweSoft }]}>
-          <AppText variant="caption" color={colors.owe}>
+          <AppText variant="caption" color={colors.owe} style={styles.statLabel}>
             You owe
           </AppText>
           <StatAmount amounts={iOwe} zero={zero} color={colors.owe} />
@@ -189,8 +190,9 @@ export default function FriendsScreen({ navigation }: TabScreenProps<'Friends'>)
 
 const styles = themed(() => StyleSheet.create({
   headerButton: { marginRight: spacing.sm },
-  overall: { gap: spacing.sm },
-  overallLabel: { letterSpacing: 0.6 },
+  overall: { gap: spacing.sm, overflow: 'hidden', borderTopWidth: 2, borderTopColor: colors.accentLine },
+  overallLabel: { fontSize: 11, letterSpacing: 0.9 },
+  statLabel: { fontSize: 11, letterSpacing: 0.9, textTransform: 'uppercase' },
   stats: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs },
   stat: { flex: 1, minWidth: 0, borderRadius: radius.md, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, gap: 2 },
   settle: { marginTop: spacing.xs },

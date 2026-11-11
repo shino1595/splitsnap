@@ -343,7 +343,7 @@ function CommentComposer({ onSend }: { onSend: (text: string) => void }) {
       />
       <IconButton
         icon="send"
-        color={canSend ? colors.white : colors.textFaint}
+        color={canSend ? colors.onPrimaryFill : colors.textFaint}
         size={20}
         onPress={send}
         disabled={!canSend}
@@ -776,5 +776,5 @@ const styles = themed((colors) => StyleSheet.create({
     borderRadius: 22,
     backgroundColor: colors.border,
   },
-  sendButtonActive: { backgroundColor: colors.primary },
+  sendButtonActive: { backgroundColor: colors.primaryFill },
 }));

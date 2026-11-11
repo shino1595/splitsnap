@@ -278,7 +278,7 @@ export default function ImportSplitwiseScreen({ navigation }: Props) {
       <SectionHeader title="Which one is you?" />
       <ListCard>
         <ListItem
-          left={meName ? <Avatar name={meName} color={colors.primary} size={36} /> : <Icon name="person-circle-outline" size={36} color={colors.textMuted} />}
+          left={meName ? <Avatar name={meName} color={avatarPalette[0]} size={36} /> : <Icon name="person-circle-outline" size={36} color={colors.textMuted} />}
           title={meName || 'Choose your name'}
           subtitle={meName ? 'Shown as "You" in SplitSnap' : 'Your column in the file becomes "You"'}
           onPress={() => setMePickerOpen(true)}
@@ -325,7 +325,7 @@ export default function ImportSplitwiseScreen({ navigation }: Props) {
             {data.people.map((name, i) => (
               <ListItem
                 key={name + i}
-                left={<Avatar name={name} color={i === meIndex ? colors.primary : avatarPalette[i % avatarPalette.length]} size={36} />}
+                left={<Avatar name={name} color={avatarPalette[i % avatarPalette.length]} size={36} />}
                 title={i === meIndex ? `${name} (you)` : name}
                 subtitle={
                   <AppText variant="label" weight="semibold" color={nets[i] > 0 ? colors.primary : nets[i] < 0 ? colors.owe : colors.textMuted}>

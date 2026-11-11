@@ -51,10 +51,11 @@ function Get-RelativePath([string]$Base, [string]$FullPath) {
 # dot-folders and declaration files unless asked. Sorted for deterministic output.
 function Get-SourceFiles([string]$Dir, [string[]]$Extensions, [switch]$IncludeDeclarations) {
     if (-not (Test-Path -LiteralPath $Dir)) { return @() }
+    $root = (Resolve-Path -LiteralPath $Dir).Path
     $files = Get-ChildItem -LiteralPath $Dir -Recurse -File | Where-Object {
         $ext = $_.Extension.ToLowerInvariant()
         ($Extensions -contains $ext) -and
-        ($_.FullName -notmatch '[\\/](node_modules|\.[^\\/]+)[\\/]') -and
+        ($_.FullName.Substring($root.Length) -notmatch '[\\/](node_modules|\.[^\\/]+)[\\/]') -and
         ($IncludeDeclarations -or $_.Name -notmatch '\.d\.ts$')
     }
     return @($files | Sort-Object FullName)

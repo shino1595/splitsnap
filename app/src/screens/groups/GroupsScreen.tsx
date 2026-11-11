@@ -10,7 +10,7 @@ import type { BalanceSummary } from '../../lib/balances';
 import { formatCurrencyAmounts } from '../../lib/money';
 import { useSync } from '../../sync/SyncProvider';
 import { colors, radius, spacing, themed } from '../../theme';
-import { AppText, AvatarStack, Button, Card, EmptyState, Icon, IconButton, Screen, SectionHeader, wrapFriendlyAmounts } from '../../ui';
+import { AppText, AvatarStack, Button, Card, EmptyState, GoldWash, Icon, IconButton, Screen, SectionHeader, wrapFriendlyAmounts } from '../../ui';
 import { ADD_GROUP_TITLE, IMPORT_GROUP_TITLE, JOIN_GROUP_TITLE, addGroupHint, addGroupRowLabel } from './addGroupMenu';
 import type { AddGroupChoice } from './addGroupMenu';
 import { AddGroupSheet } from './components/AddGroupSheet';
@@ -30,7 +30,7 @@ const ROW_DIVIDER_INSET = spacing.lg + AVATAR_SIZE + spacing.md;
 function Stat({ label, value, color }: { label: string; value: string; color: string }) {
   return (
     <View style={styles.stat}>
-      <AppText variant="caption">{label}</AppText>
+      <AppText variant="caption" weight="semibold" style={styles.statLabel}>{label}</AppText>
       <AppText weight="bold" color={color} numberOfLines={2}>
         {value}
       </AppText>
@@ -44,6 +44,7 @@ function OverallCard({ summary }: { summary: BalanceSummary }) {
   const evenedOut = isSettled(summary.net) && (!!owed || !!owe);
   return (
     <Card style={styles.overall}>
+      <GoldWash />
       <BalanceHeadline
         amounts={summary.net}
         owedLead="Overall, you are owed "
@@ -302,7 +303,8 @@ export default function GroupsScreen({ navigation }: Props) {
 
 const styles = themed((colors) => StyleSheet.create({
   headerButton: { marginRight: spacing.sm },
-  overall: { gap: spacing.md },
+  overall: { gap: spacing.md, overflow: 'hidden', borderTopWidth: 2, borderTopColor: colors.accentLine },
+  statLabel: { fontSize: 11, letterSpacing: 0.9, textTransform: 'uppercase', color: colors.textMuted },
   overallHint: { marginTop: -spacing.xs },
   statsRow: {
     flexDirection: 'row',

@@ -174,7 +174,7 @@ export default function AccountScreen({ navigation }: TabScreenProps<'Account'>)
       <Card>
         <View style={styles.aboutRow}>
           <View style={styles.logo}>
-            <Icon name="receipt-outline" size={22} color={colors.white} />
+            <Icon name="receipt-outline" size={22} color={colors.onPrimaryFill} />
           </View>
           <View style={styles.flex}>
             <AppText weight="semibold">SplitSnap</AppText>
@@ -243,7 +243,7 @@ const styles = themed((colors) => StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: radius.md,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.primaryFill,
     alignItems: 'center',
     justifyContent: 'center',
   },

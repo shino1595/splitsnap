@@ -14,7 +14,7 @@ export interface ActionPillProps {
 
 /** Compact rounded action used in the group header's horizontal action row. */
 export function ActionPill({ icon, label, onPress, primary = false, accessibilityLabel }: ActionPillProps) {
-  const fg = primary ? colors.white : colors.text;
+  const fg = primary ? colors.onPrimaryFill : colors.text;
   return (
     <Pressable
       onPress={onPress}
@@ -27,7 +27,7 @@ export function ActionPill({ icon, label, onPress, primary = false, accessibilit
         pressed && (primary ? styles.primaryPressed : styles.plainPressed),
       ]}
     >
-      <Icon name={icon} size={18} color={primary ? colors.white : colors.primaryDark} />
+      <Icon name={icon} size={18} color={primary ? colors.onPrimaryFill : colors.primaryDark} />
       <AppText variant="label" weight="semibold" color={fg} numberOfLines={1}>
         {label}
       </AppText>
@@ -47,6 +47,6 @@ const styles = themed((colors) => StyleSheet.create({
   },
   plain: { backgroundColor: colors.card, borderColor: colors.border },
   plainPressed: { backgroundColor: colors.background },
-  primary: { backgroundColor: colors.primary, borderColor: colors.primary },
-  primaryPressed: { backgroundColor: colors.primaryDark, borderColor: colors.primaryDark },
+  primary: { backgroundColor: colors.primaryFill, borderColor: colors.primaryFill },
+  primaryPressed: { backgroundColor: colors.primaryFillPressed, borderColor: colors.primaryFillPressed },
 }));

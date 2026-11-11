@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { StyleProp, StyleSheet, Text, TextStyle } from 'react-native';
 import { colors, font, themed } from '../theme';
+import { TITLE_FONT_FAMILY, TITLE_FONT_SIZE, TITLE_LETTER_SPACING, useTitleFont } from './fonts';
 
 export type AppTextVariant = 'title' | 'heading' | 'body' | 'label' | 'caption' | 'amount';
 
@@ -28,6 +29,8 @@ export interface AppTextProps {
   style?: StyleProp<TextStyle>;
   children?: React.ReactNode;
   selectable?: boolean;
+  /** Keeps a title-variant value (e.g. an amount) in the system font. */
+  plain?: boolean;
   onPress?: () => void;
   testID?: string;
   accessibilityLabel?: string;
@@ -42,16 +45,18 @@ export function AppText({
   style,
   children,
   selectable,
+  plain,
   onPress,
   testID,
   accessibilityLabel,
 }: AppTextProps) {
+  const serif = useTitleFont() && variant === 'title' && !plain;
   return (
     <Text
       style={[
-        styles[variant],
+        serif ? styles.titleSerif : styles[variant],
         color !== undefined && { color },
-        weight !== undefined && { fontWeight: resolveWeight(weight) },
+        weight !== undefined && !serif && { fontWeight: resolveWeight(weight) },
         align !== undefined && { textAlign: align },
         style,
       ]}
@@ -68,6 +73,7 @@ export function AppText({
 
 const styles = themed((colors) => StyleSheet.create({
   title: { fontSize: font.title, fontWeight: font.weightBold, color: colors.text },
+  titleSerif: { fontSize: TITLE_FONT_SIZE, color: colors.text, fontFamily: TITLE_FONT_FAMILY, letterSpacing: TITLE_LETTER_SPACING },
   heading: { fontSize: font.heading, fontWeight: font.weightSemibold, color: colors.text },
   body: { fontSize: font.body, fontWeight: font.weightRegular, color: colors.text },
   label: { fontSize: font.label, fontWeight: font.weightMedium, color: colors.text },

@@ -11,7 +11,7 @@ describe('theme switching', () => {
     expect(getActiveTheme()).toBe('dark');
     expect(colors.text).not.toBe(lightText);
     expect(colors.card).not.toBe(lightCard);
-    expect(colors.primary).toBe('#1CC29F');
+    expect(colors.primary).toBe('#D9BC7A');
   });
 
   it('spreading colors copies the active palette', () => {

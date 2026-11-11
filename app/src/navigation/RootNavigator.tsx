@@ -13,7 +13,7 @@ import {
   createBottomTabNavigator,
 } from '@react-navigation/bottom-tabs';
 import { colors, font, themed } from '../theme';
-import { Icon, IconButton, shadowStyle } from '../ui';
+import { HEADER_FONT_SIZE, Icon, IconButton, TITLE_FONT_FAMILY, TITLE_LETTER_SPACING, shadowStyle, useTitleFont } from '../ui';
 import type { RootStackParamList, TabParamList } from './types';
 
 import ActivityScreen from '../screens/activity/ActivityScreen';
@@ -47,11 +47,14 @@ const Tab = createBottomTabNavigator<TabParamList>();
 type RootNavigation = NativeStackNavigationProp<RootStackParamList>;
 
 // Functions, not constants: the colours must be read while rendering so they follow dark mode.
-const headerTitleStyle = () => ({ fontWeight: font.weightSemibold, color: colors.text });
+const headerTitleStyle = (serif: boolean) =>
+  serif
+    ? { color: colors.text, fontFamily: TITLE_FONT_FAMILY, fontSize: HEADER_FONT_SIZE, letterSpacing: TITLE_LETTER_SPACING }
+    : { color: colors.text, fontWeight: font.weightSemibold };
 
-const stackScreenOptions = (): NativeStackNavigationOptions => ({
+const stackScreenOptions = (serif: boolean): NativeStackNavigationOptions => ({
   headerStyle: { backgroundColor: colors.card },
-  headerTitleStyle: headerTitleStyle(),
+  headerTitleStyle: headerTitleStyle(serif),
   headerTintColor: colors.primary,
   headerBackButtonDisplayMode: 'minimal',
   contentStyle: { backgroundColor: colors.background },
@@ -95,7 +98,7 @@ function AddTabPlaceholder() {
   return null;
 }
 
-/** Raised green "+" in the middle of the tab bar. */
+/** Raised "+" in the middle of the tab bar. */
 function AddTabButton({ onPress, testID }: BottomTabBarButtonProps) {
   const navigation = useNavigation<RootNavigation>();
   const press = (e: GestureResponderEvent) => {
@@ -113,19 +116,20 @@ function AddTabButton({ onPress, testID }: BottomTabBarButtonProps) {
         hitSlop={6}
         style={({ pressed }) => [styles.addButton, pressed && styles.addButtonPressed]}
       >
-        <Icon name="add" size={32} color={colors.white} />
+        <Icon name="add" size={32} color={colors.onPrimaryFill} />
       </Pressable>
     </View>
   );
 }
 
 function Tabs() {
+  const serif = useTitleFont();
   const insets = useSafeAreaInsets();
   return (
     <Tab.Navigator
       screenOptions={{
         headerStyle: { backgroundColor: colors.card },
-        headerTitleStyle: headerTitleStyle(),
+        headerTitleStyle: headerTitleStyle(serif),
         headerTintColor: colors.primary,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
@@ -160,8 +164,9 @@ function Tabs() {
 }
 
 export default function RootNavigator() {
+  const serif = useTitleFont();
   return (
-    <Stack.Navigator initialRouteName="Tabs" screenOptions={stackScreenOptions()}>
+    <Stack.Navigator initialRouteName="Tabs" screenOptions={stackScreenOptions(serif)}>
       <Stack.Screen name="Tabs" component={Tabs} options={{ headerShown: false, title: 'SplitSnap' }} />
 
       {/* GroupDetail and FriendDetail show the name in their content; their title only names the web tab. */}
@@ -227,12 +232,12 @@ const styles = themed((colors) => StyleSheet.create({
     height: ADD_SIZE,
     borderRadius: ADD_SIZE / 2,
     marginTop: -18,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.primaryFill,
     borderWidth: 4,
     borderColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
     ...shadowStyle(2),
   },
-  addButtonPressed: { backgroundColor: colors.primaryDark },
+  addButtonPressed: { backgroundColor: colors.primaryFillPressed },
 }));

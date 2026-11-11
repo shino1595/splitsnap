@@ -39,9 +39,9 @@ export function Fab({ icon = 'add', label, onPress, style, accessibilityLabel, t
         style,
       ]}
     >
-      <Icon name={icon} size={label ? 22 : 28} color={colors.white} />
+      <Icon name={icon} size={label ? 22 : 28} color={colors.onPrimaryFill} />
       {label ? (
-        <AppText weight="semibold" color={colors.white} numberOfLines={1}>
+        <AppText weight="semibold" color={colors.onPrimaryFill} numberOfLines={1}>
           {label}
         </AppText>
       ) : null}
@@ -57,11 +57,11 @@ const styles = themed((colors) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.primaryFill,
     zIndex: 10,
     ...shadowStyle(3),
   },
   round: { width: 58, height: 58, borderRadius: 29 },
   extended: { height: 52, borderRadius: 26, paddingLeft: spacing.lg, paddingRight: spacing.xl - 4 },
-  pressed: { backgroundColor: colors.primaryDark },
+  pressed: { backgroundColor: colors.primaryFillPressed },
 }));

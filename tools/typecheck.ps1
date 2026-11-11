@@ -132,7 +132,7 @@ Write-Host "Checking against Expo SDK $Sdk library versions."
 $allowedPackages = @(
     'react', 'react-native', '@react-navigation/native', '@react-navigation/native-stack',
     '@react-navigation/bottom-tabs', 'react-native-safe-area-context', 'react-native-screens',
-    '@react-native-async-storage/async-storage', 'expo-image-picker', 'expo-image-manipulator', 'expo-document-picker',
+    '@react-native-async-storage/async-storage', 'expo-image-picker', 'expo-image-manipulator', 'expo-document-picker', 'expo-font',
     '@expo/vector-icons', '@supabase/supabase-js', 'react-native-url-polyfill'
 )
 

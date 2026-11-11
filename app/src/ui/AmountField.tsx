@@ -66,7 +66,7 @@ export function AmountField({
       </AppText>
       {onPressCurrency ? (
         <View style={styles.symbolBadge}>
-          <Icon name="chevron-down" size={10} color={colors.white} />
+          <Icon name="chevron-down" size={10} color={colors.onPrimaryFill} />
         </View>
       ) : null}
     </View>
@@ -163,7 +163,7 @@ const styles = themed((colors) => StyleSheet.create({
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.primaryFill,
     borderWidth: 2,
     borderColor: colors.card,
     alignItems: 'center',

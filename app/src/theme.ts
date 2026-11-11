@@ -1,4 +1,4 @@
-// Design tokens. Screens and components use these instead of literal values.
+// Design tokens ("Noir & Gold"). Screens and components use these instead of literal values.
 //
 // Light and dark palettes share the same keys. `colors` always returns the active palette's
 // value, so `colors.text` read while rendering follows the theme. Style sheets are built with
@@ -7,67 +7,87 @@
 // SPLITSNAP4): it would keep the colour that was active when the file loaded.
 
 const lightColors = {
-  primary: '#1CC29F', // Splitwise-style green: "you are owed", primary actions
-  primaryDark: '#119C7E',
-  primarySoft: '#E3F8F2',
-  primaryBorder: '#BFEBDD',
-  primaryPressed: '#CDEFE5',
-  owe: '#FF652F', // orange: "you owe"
-  oweSoft: '#FFEDE5',
-  text: '#1F2A2E',
-  textMuted: '#6B7B80',
-  textFaint: '#9AA8AC',
-  border: '#E3E8EA',
-  background: '#F4F6F7',
+  primary: '#8A671B', // gold-bronze: tint, links, icons, selected states, "you are owed"
+  primaryDark: '#6B4F12',
+  primarySoft: '#F3ECD9',
+  primaryBorder: '#DCCB9C',
+  primaryPressed: '#EADFC2',
+  /** Background of filled primary buttons, the Fab and the raised centre tab button. */
+  primaryFill: '#15130F',
+  primaryFillPressed: '#34302A',
+  /** Text and icons on primaryFill. */
+  onPrimaryFill: '#E9D6A3',
+  /** Thin gold rule. */
+  accentLine: '#C9A85A',
+  /** Decorative circles behind every screen (Screen.tsx), largest to smallest, and the gold wash on balance cards. */
+  layer1: 'rgba(255, 255, 255, 0.55)',
+  layer2: '#FBF8F0',
+  layer3: '#FFFFFF',
+  wash: '#FBF2DC',
+  owe: '#A63D4F', // rose: "you owe"
+  oweSoft: '#F7E6E9',
+  text: '#15130F',
+  textMuted: '#726C61',
+  textFaint: '#A39C90',
+  border: '#E4DED1',
+  background: '#F6F3EC',
   card: '#FFFFFF',
-  danger: '#E5484D',
-  dangerSoft: '#FDECEC',
-  dangerPressed: '#C9363B',
-  warning: '#B7791F',
-  warningSoft: '#FFF6E0',
-  info: '#3B82F6',
-  infoSoft: '#EAF2FF',
+  danger: '#C4321F',
+  dangerSoft: '#FBE9E6',
+  dangerPressed: '#A32818',
+  warning: '#B4540E',
+  warningSoft: '#FCEBDD',
+  info: '#3D5A80',
+  infoSoft: '#E9EEF5',
   white: '#FFFFFF',
-  overlay: 'rgba(15, 23, 26, 0.45)',
+  overlay: 'rgba(21, 19, 15, 0.45)',
   /** Pressed state for flat controls (icon buttons, rows). */
-  pressed: 'rgba(15, 23, 26, 0.06)',
+  pressed: 'rgba(21, 19, 15, 0.06)',
   /** Translucent page colour behind a loading spinner. */
-  scrim: 'rgba(244, 246, 247, 0.78)',
+  scrim: 'rgba(246, 243, 236, 0.78)',
   /** Segment pressed inside a SegmentedControl. */
   segmentPressed: 'rgba(255, 255, 255, 0.5)',
   /** Android switch thumb when off. */
-  switchThumbOff: '#F4F5F5',
+  switchThumbOff: '#F4F2EC',
 };
 
 export type Palette = typeof lightColors;
 
 const darkColors: Palette = {
-  primary: '#1CC29F',
-  primaryDark: '#4FD8B8', // used for text on primarySoft, so it must stay readable on dark
-  primarySoft: 'rgba(28, 194, 159, 0.16)',
-  primaryBorder: 'rgba(28, 194, 159, 0.38)',
-  primaryPressed: 'rgba(28, 194, 159, 0.26)',
-  owe: '#FF7A45',
-  oweSoft: 'rgba(255, 122, 69, 0.16)',
-  text: '#E8EDEF',
-  textMuted: '#9FAEB3',
-  textFaint: '#6E7D82',
-  border: '#2C3438',
-  background: '#101416',
-  card: '#1A2023',
-  danger: '#F2555A',
-  dangerSoft: 'rgba(242, 85, 90, 0.16)',
-  dangerPressed: '#D9454A',
-  warning: '#E5A93A',
-  warningSoft: 'rgba(229, 169, 58, 0.16)',
-  info: '#6EA8FE',
-  infoSoft: 'rgba(110, 168, 254, 0.16)',
+  primary: '#D9BC7A',
+  primaryDark: '#E8D3A2', // used for text on primarySoft, so it must stay readable on dark
+  primarySoft: 'rgba(212, 181, 106, 0.12)',
+  primaryBorder: 'rgba(212, 181, 106, 0.38)',
+  primaryPressed: 'rgba(212, 181, 106, 0.24)',
+  primaryFill: '#D4B56A',
+  primaryFillPressed: '#BFA158',
+  onPrimaryFill: '#14120D',
+  accentLine: '#D4B56A',
+  layer1: '#111112',
+  layer2: '#191816',
+  layer3: '#23201A',
+  wash: '#2A2416',
+  owe: '#E58C9B',
+  oweSoft: 'rgba(229, 140, 155, 0.16)',
+  text: '#F2EDE2',
+  textMuted: '#A39C8E',
+  textFaint: '#6F695E',
+  border: '#2B2924',
+  background: '#0C0C0D',
+  card: '#161617',
+  danger: '#F0604F',
+  dangerSoft: 'rgba(240, 96, 79, 0.16)',
+  dangerPressed: '#D24C3C',
+  warning: '#F0954A',
+  warningSoft: 'rgba(240, 149, 74, 0.16)',
+  info: '#8FB0DE',
+  infoSoft: 'rgba(143, 176, 222, 0.16)',
   white: '#FFFFFF',
   overlay: 'rgba(0, 0, 0, 0.6)',
   pressed: 'rgba(255, 255, 255, 0.08)',
-  scrim: 'rgba(16, 20, 22, 0.8)',
+  scrim: 'rgba(12, 12, 13, 0.8)',
   segmentPressed: 'rgba(255, 255, 255, 0.08)',
-  switchThumbOff: '#C9D1D4',
+  switchThumbOff: '#C9C4B8',
 };
 
 export type ThemeName = 'light' | 'dark';
@@ -121,7 +141,7 @@ export const avatarPalette = [
 
 export const spacing = { xxs: 2, xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 };
 
-export const radius = { sm: 6, md: 10, lg: 16, pill: 999 };
+export const radius = { sm: 6, md: 12, lg: 14, pill: 999 };
 
 export const font = {
   caption: 12,

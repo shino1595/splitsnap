@@ -7,7 +7,7 @@ export interface ChipProps {
   label: string;
   selected?: boolean;
   onPress?: () => void;
-  /** Fill colour when selected (defaults to the primary green). */
+  /** Fill colour when selected (defaults to primaryFill). */
   color?: string;
   /** Sits 3 px from the edge, sized for a round avatar; give an Icon its own marginLeft. */
   left?: React.ReactNode;
@@ -23,7 +23,7 @@ export function Chip({
   label,
   selected = false,
   onPress,
-  color = colors.primary,
+  color,
   left,
   right,
   small = false,
@@ -40,8 +40,8 @@ export function Chip({
       height,
       paddingLeft: left ? 3 : small ? spacing.sm + 2 : spacing.md,
       paddingRight: small ? spacing.sm + 2 : spacing.md,
-      backgroundColor: selected ? color : colors.card,
-      borderColor: selected ? color : colors.border,
+      backgroundColor: selected ? color ?? colors.primaryFill : colors.card,
+      borderColor: selected ? color ?? colors.primaryFill : colors.border,
     },
     disabled && styles.disabled,
     style,
@@ -52,7 +52,7 @@ export function Chip({
       <AppText
         numberOfLines={1}
         weight={selected ? 'semibold' : 'medium'}
-        color={selected ? colors.white : colors.text}
+        color={selected ? (color ? colors.white : colors.onPrimaryFill) : colors.text}
         style={{ fontSize: small ? font.caption : font.small }}
       >
         {label}

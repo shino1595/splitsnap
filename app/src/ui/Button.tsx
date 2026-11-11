@@ -23,7 +23,7 @@ export interface ButtonProps {
 }
 
 const PALETTE = themed((colors): Record<ButtonVariant, { bg: string; fg: string; border: string; pressedBg: string }> => ({
-  primary: { bg: colors.primary, fg: colors.white, border: colors.primary, pressedBg: colors.primaryDark },
+  primary: { bg: colors.primaryFill, fg: colors.onPrimaryFill, border: colors.primaryFill, pressedBg: colors.primaryFillPressed },
   secondary: { bg: colors.primarySoft, fg: colors.primaryDark, border: colors.primarySoft, pressedBg: colors.primaryPressed },
   outline: { bg: colors.card, fg: colors.text, border: colors.border, pressedBg: colors.background },
   ghost: { bg: 'transparent', fg: colors.primaryDark, border: 'transparent', pressedBg: colors.primarySoft },

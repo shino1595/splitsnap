@@ -40,7 +40,7 @@ const styles = themed((colors) => StyleSheet.create({
     paddingBottom: spacing.sm,
     gap: spacing.sm,
   },
-  title: { flex: 1, color: colors.textMuted, fontSize: font.caption, letterSpacing: 0.6 },
+  title: { flex: 1, color: colors.textMuted, fontSize: 11, letterSpacing: 0.9, textTransform: 'uppercase' },
   right: { flexDirection: 'row', alignItems: 'center' },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border, alignSelf: 'stretch' },
 }));

@@ -22,7 +22,7 @@ function OptionCard({ icon, title, subtitle, onPress, featured = false, testID }
       style={({ pressed }) => [styles.card, featured && styles.cardFeatured, pressed && styles.pressed]}
     >
       <View style={[styles.iconCircle, featured && styles.iconCircleFeatured]}>
-        <Icon name={icon} size={28} color={featured ? colors.white : colors.primaryDark} />
+        <Icon name={icon} size={28} color={featured ? colors.onPrimaryFill : colors.primaryDark} />
       </View>
       <View style={styles.flex}>
         <AppText variant="heading">{title}</AppText>
@@ -148,7 +148,7 @@ const styles = themed((colors) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconCircleFeatured: { backgroundColor: colors.primary },
+  iconCircleFeatured: { backgroundColor: colors.primaryFill },
   tips: { gap: spacing.sm, padding: spacing.lg, borderRadius: radius.lg, backgroundColor: colors.card },
   tipsTitle: { letterSpacing: 0.6 },
   tipRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },

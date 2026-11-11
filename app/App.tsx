@@ -7,7 +7,7 @@ import { AppStoreProvider, useAppState, useStoreReady } from './src/store/AppSto
 import { DraftProvider } from './src/store/draft';
 import { SyncProvider } from './src/sync/SyncProvider';
 import { colors, setActiveTheme, themed, ThemeName } from './src/theme';
-import { AppText, DialogHost } from './src/ui';
+import { AppText, DialogHost, loadTitleFont, useFontSettled } from './src/ui';
 
 function navigationThemeFor(name: ThemeName): Theme {
   const base = name === 'dark' ? DarkTheme : DefaultTheme;
@@ -44,6 +44,7 @@ function useResolvedTheme(): ThemeName {
 /** Waits for the saved state to load before showing any screen. */
 function AppContent() {
   const ready = useStoreReady();
+  const fontSettled = useFontSettled();
   const theme = useResolvedTheme();
   // Switch the palette before anything below renders, so `colors` and themed styles match.
   setActiveTheme(theme);
@@ -51,7 +52,7 @@ function AppContent() {
   // state puts the user back where they were.
   const navState = React.useRef<InitialState | undefined>(undefined);
 
-  if (!ready) {
+  if (!ready || !fontSettled) {
     return (
       <View style={styles.loading} accessibilityLabel="Loading SplitSnap">
         <ActivityIndicator size="large" color={colors.primary} />
@@ -80,6 +81,9 @@ function AppContent() {
 }
 
 export default function App() {
+  React.useEffect(() => {
+    loadTitleFont();
+  }, []);
   return (
     <SafeAreaProvider>
       <AppStoreProvider>

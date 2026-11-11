@@ -254,7 +254,7 @@ export default function SplitOptionsScreen({ navigation }: Props) {
     <Screen keyboard contentStyle={styles.content} footer={<StatusFooter status={status} onDone={done} />} testID="split-options">
       <View style={styles.summary}>
         <AppText variant="caption">{method === 'itemized' ? 'Bill total' : 'Total'}</AppText>
-        <AppText variant="title">{shownTotal !== null ? money(shownTotal) : '—'}</AppText>
+        <AppText variant="title" plain>{shownTotal !== null ? money(shownTotal) : '—'}</AppText>
         <AppText variant="caption">{splitBetween}</AppText>
       </View>
 

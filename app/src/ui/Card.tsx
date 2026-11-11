@@ -1,7 +1,6 @@
 import * as React from 'react';
 import { Pressable, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { colors, radius, spacing, themed } from '../theme';
-import { shadowStyle } from './shadow';
 
 export interface CardProps {
   children?: React.ReactNode;
@@ -39,7 +38,8 @@ const styles = themed((colors) => StyleSheet.create({
   card: {
     backgroundColor: colors.card,
     borderRadius: radius.lg,
-    ...shadowStyle(1),
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   padded: { padding: spacing.lg },
   pressed: { opacity: 0.85 },
