@@ -197,3 +197,13 @@ describe('diffShared: expenses, payments, comments, activity', () => {
     expect(keys).toEqual([{ kind: 'payment', groupId: TRIP, id: 'pay_1' }, activityKey(next)]);
   });
 });
+
+describe('diffShared: group theme', () => {
+  it('queues the group when its theme changes, but not for an unshared group', () => {
+    const state = base();
+    const keys = step(state, { type: 'group/update', id: TRIP, patch: { theme: 'beach' }, ...stamp() }).keys;
+    expect(keys).toContainEqual({ kind: 'group', groupId: TRIP, id: TRIP });
+    const flat = step(state, { type: 'group/update', id: FLAT, patch: { theme: 'home' }, ...stamp() }).keys;
+    expect(flat.filter((k) => k.kind === 'group')).toEqual([]);
+  });
+});

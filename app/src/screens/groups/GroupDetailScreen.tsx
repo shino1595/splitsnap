@@ -51,6 +51,10 @@ export default function GroupDetailScreen({ navigation, route }: Props) {
       // The name is shown in the screen itself; title only names the browser tab on web.
       title: groupName,
       headerTitle: '',
+      // The themed banner runs under the header; a missing group keeps the normal bar.
+      headerTransparent: exists,
+      headerShadowVisible: !exists,
+      headerStyle: { backgroundColor: exists ? 'transparent' : colors.card },
       headerRight: exists
         ? () => (
             <IconButton
@@ -115,7 +119,7 @@ export default function GroupDetailScreen({ navigation, route }: Props) {
   const onlyMe = data.members.length <= 1;
 
   return (
-    <Screen>
+    <Screen contentStyle={styles.noTopPadding}>
       <GroupHeader
         state={state}
         group={group}
@@ -187,6 +191,8 @@ export default function GroupDetailScreen({ navigation, route }: Props) {
 }
 
 const styles = themed(() => StyleSheet.create({
+  // The banner starts at the very top, under the transparent header.
+  noTopPadding: { paddingTop: 0 },
   banner: { marginTop: spacing.md },
   empty: { paddingVertical: spacing.xxl },
   sharedChip: { marginTop: spacing.md },

@@ -3,6 +3,7 @@
 import { ME_ID } from '../types';
 import type { AppState, ISODateTime, Person, Settings } from '../types';
 import { avatarPalette } from '../theme';
+import { isGroupThemeId } from '../lib/groupThemes';
 
 export const STORAGE_KEY = 'splitsnap/state/v1';
 
@@ -85,6 +86,18 @@ export function isAppState(value: unknown): value is AppState {
   return isRecord(settings) && typeof settings.defaultCurrency === 'string';
 }
 
+/** A theme this version does not know (saved by a newer build) is dropped, which reads as the default theme. */
+function withKnownThemes(groups: AppState['groups']): AppState['groups'] {
+  const ids = Object.keys(groups);
+  if (ids.every((id) => groups[id].theme === undefined || isGroupThemeId(groups[id].theme))) return groups;
+  const out: AppState['groups'] = {};
+  for (const id of ids) {
+    const { theme, ...rest } = groups[id];
+    out[id] = isGroupThemeId(theme) ? groups[id] : rest;
+  }
+  return out;
+}
+
 /** JSON from storage → AppState, or null when missing, unparseable, from another schema or damaged. */
 export function parsePersistedState(raw: string | null | undefined): AppState | null {
   if (!raw) return null;
@@ -96,7 +109,7 @@ export function parsePersistedState(raw: string | null | undefined): AppState | 
   }
   if (!isAppState(value)) return null;
   // Fill settings added after the state was saved.
-  return { ...value, settings: { ...DEFAULT_SETTINGS, ...value.settings } };
+  return { ...value, groups: withKnownThemes(value.groups), settings: { ...DEFAULT_SETTINGS, ...value.settings } };
 }
 
 /**

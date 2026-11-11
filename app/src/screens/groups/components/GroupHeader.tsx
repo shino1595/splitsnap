@@ -1,13 +1,13 @@
-// Top of the group detail screen: picture, name, type, members, my balance with the debts
-// that involve me, and a horizontally scrolling row of actions.
+// Top of the group detail screen: the themed banner (picture, name, type, people), then the card
+// with members, my balance and the debts that involve me, and a horizontally scrolling row of actions.
 import * as React from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import type { AppState, CurrencyAmounts, Debt, Group, Person } from '../../../types';
 import { colors, spacing, themed } from '../../../theme';
-import { AppText, AvatarStack, Card, Icon } from '../../../ui';
+import { AppText, AvatarStack, Card, GoldWash, Icon } from '../../../ui';
 import { ActionPill } from './ActionPill';
 import { BalanceHeadline, DebtText } from './BalanceBits';
-import { GroupAvatar } from './GroupAvatar';
+import { BANNER_OVERLAP, GroupThemeBanner } from './GroupThemeBanner';
 import { groupTypeInfo, headerDebtLines, memberCountLabel, plural } from './groupMeta';
 
 export interface GroupAction {
@@ -34,8 +34,6 @@ export interface GroupHeaderProps {
 }
 
 const MAX_DEBT_LINES = 3;
-/** Names longer than this use a smaller title so up to 60 characters fit in three lines. */
-const LONG_NAME = 24;
 
 export function GroupHeader({
   state,
@@ -52,26 +50,14 @@ export function GroupHeader({
   const shown = headerDebtLines(myDebts, MAX_DEBT_LINES);
   const more = myDebts.length - shown.length;
   const memberNames = members.map((m) => m.name).join(', ');
+  const subtitle = `${info.label} · ${memberCountLabel(members.length)}`;
 
   return (
     <View>
-      <Card style={styles.card}>
-        <View style={styles.top}>
-          <GroupAvatar group={group} size={64} />
-          <View style={styles.titleBlock}>
-            <AppText variant={group.name.length > LONG_NAME ? 'heading' : 'title'} weight="bold" numberOfLines={3}>
-              {group.name}
-            </AppText>
-            <View style={styles.typeRow}>
-              <Icon name={info.icon} size={14} color={colors.textMuted} />
-              <AppText variant="caption" numberOfLines={1}>
-                {info.label}
-                {group.archived ? ' · Archived' : ''}
-              </AppText>
-            </View>
-          </View>
-        </View>
+      <GroupThemeBanner group={group} subtitle={subtitle} />
 
+      <Card style={styles.card}>
+        <GoldWash />
         <Pressable
           onPress={onPressMembers}
           accessibilityRole="button"
@@ -136,10 +122,8 @@ export function GroupHeader({
 }
 
 const styles = themed((colors) => StyleSheet.create({
-  card: { gap: spacing.md },
-  top: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
-  titleBlock: { flex: 1, minWidth: 0, gap: spacing.xs },
-  typeRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  // Climbs into the faded bottom of the banner above it.
+  card: { gap: spacing.md, overflow: 'hidden', borderTopWidth: 2, borderTopColor: colors.accentLine, marginTop: -BANNER_OVERLAP },
   membersRow: {
     flexDirection: 'row',
     alignItems: 'center',

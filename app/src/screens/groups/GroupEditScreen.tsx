@@ -2,7 +2,7 @@ import * as React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { usePreventRemove } from '@react-navigation/native';
 import { ME_ID } from '../../types';
-import type { CurrencyCode, GroupType, ID, Person } from '../../types';
+import type { CurrencyCode, GroupThemeId, GroupType, ID, Person } from '../../types';
 import type { RootScreenProps } from '../../navigation/types';
 import { useActions, useAppState } from '../../store/AppStore';
 import { canDeleteGroup, canRemoveGroupMember, listFriends, liveExpenses, livePayments, personName } from '../../store/selectors';
@@ -27,6 +27,7 @@ import {
 } from '../../ui';
 import { EmojiGrid } from './components/EmojiGrid';
 import { GroupAvatar } from './components/GroupAvatar';
+import { GroupThemePicker } from './components/GroupThemePicker';
 import { ListCard } from './components/ListCard';
 import { MemberPicker } from './components/MemberPicker';
 import { MissingGroup } from './components/MissingGroup';
@@ -60,8 +61,9 @@ function formKey(
   currency: CurrencyCode,
   simplify: boolean,
   archived: boolean,
+  theme: GroupThemeId,
 ): string {
-  return JSON.stringify([cleanName(name), type, emoji, [...memberIds].sort(), currency, simplify, archived]);
+  return JSON.stringify([cleanName(name), type, emoji, [...memberIds].sort(), currency, simplify, archived, theme]);
 }
 
 export default function GroupEditScreen({ navigation, route }: Props) {
@@ -86,6 +88,7 @@ export default function GroupEditScreen({ navigation, route }: Props) {
   );
   const [simplify, setSimplify] = React.useState(existing?.simplifyDebts ?? state.settings.simplifyDebtsDefault);
   const [archived, setArchived] = React.useState(!!existing?.archived);
+  const [theme, setTheme] = React.useState<GroupThemeId>(existing?.theme ?? 'default');
   // People typed into "Add a new person": they become friends only when the group is saved.
   const [pending, setPending] = React.useState<Person[]>([]);
   const [submitted, setSubmitted] = React.useState(false);
@@ -102,9 +105,9 @@ export default function GroupEditScreen({ navigation, route }: Props) {
 
   // What the form started with, to tell whether there is anything to discard, and which fields
   // the user changed (only those are saved).
-  const [initialForm] = React.useState(() => formKey(name, type, emoji, memberIds, currency, simplify, archived));
-  const [startFields] = React.useState<GroupFormFields>(() => ({ name, type, emoji, currency, simplify, archived }));
-  const dirty = formKey(name, type, emoji, memberIds, currency, simplify, archived) !== initialForm;
+  const [initialForm] = React.useState(() => formKey(name, type, emoji, memberIds, currency, simplify, archived, theme));
+  const [startFields] = React.useState<GroupFormFields>(() => ({ name, type, emoji, currency, simplify, archived, theme }));
+  const dirty = formKey(name, type, emoji, memberIds, currency, simplify, archived, theme) !== initialForm;
 
   // Ticked members. In a shared group nobody is removed here, so people who joined from their own
   // phone since the form opened are ticked too (without making the form count as changed).
@@ -253,6 +256,7 @@ export default function GroupEditScreen({ navigation, route }: Props) {
         memberIds: [ME_ID, ...realIds],
         defaultCurrency: currency,
         simplifyDebts: simplify,
+        theme,
       });
       navigation.replace('GroupDetail', { groupId: group.id });
       return;
@@ -272,7 +276,7 @@ export default function GroupEditScreen({ navigation, route }: Props) {
       if (existing.memberIds.indexOf(id) < 0) actions.addGroupMember(existing.id, id);
     }
     // Only what was changed here, so another member's rename meanwhile isn't undone.
-    const patch = changedGroupFields(startFields, { name, type, emoji, currency, simplify, archived });
+    const patch = changedGroupFields(startFields, { name, type, emoji, currency, simplify, archived, theme });
     if (Object.keys(patch).length > 0) actions.updateGroup(existing.id, patch);
     if (failures.length > 0) showAlert('Some members were kept', failures.join('\n\n'));
     navigation.goBack();
@@ -377,6 +381,9 @@ export default function GroupEditScreen({ navigation, route }: Props) {
       <Card>
         <EmojiGrid value={emoji} onChange={pickEmoji} />
       </Card>
+
+      <SectionHeader title="Theme" />
+      <GroupThemePicker value={theme} onChange={setTheme} name={name.trim() || 'New group'} emoji={emoji} shared={shared} />
 
       <SectionHeader title={`Members · ${selectedIds.length + 1}`} />
       <ListCard>

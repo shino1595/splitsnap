@@ -293,3 +293,15 @@ describe('groupLogic: delete group question', () => {
     expect(deletionNote(3, 1)).toBe(' Its 3 expenses and 1 payment will be deleted too.');
   });
 });
+
+describe('groupLogic: theme in the editor patch', () => {
+  const start = { name: 'Goa Trip', type: 'trip' as const, emoji: '🏖️', currency: 'INR', simplify: false, archived: false };
+
+  it('sends only a changed theme, and reads a missing theme as the default', () => {
+    expect(changedGroupFields(start, { ...start, theme: 'default' })).toEqual({});
+    expect(changedGroupFields({ ...start, theme: 'beach' }, { ...start, theme: 'beach' })).toEqual({});
+    expect(changedGroupFields(start, { ...start, theme: 'beach' })).toStrictEqual({ theme: 'beach' });
+    expect(changedGroupFields({ ...start, theme: 'beach' }, { ...start, theme: 'default' })).toStrictEqual({ theme: 'default' });
+    expect(changedGroupFields({ ...start, theme: 'beach' }, start)).toStrictEqual({ theme: 'default' });
+  });
+});

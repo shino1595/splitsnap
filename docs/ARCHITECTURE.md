@@ -235,6 +235,17 @@ export function buildCsv(args: { expenses: Expense[]; payments: Payment[]; peopl
 export function newId(prefix: string): ID;        // e.g. 'exp_lq3k9x_4f2a' (time + random)
 ```
 
+### lib/groupThemes.ts
+```ts
+export interface GroupThemeInfo { id: GroupThemeId; label: string; tint: [number, number, number] }
+export const GROUP_THEMES: GroupThemeInfo[];            // default first, then beach, mountains, home, office, friends, fitness, groceries, music, dining
+export const DEFAULT_GROUP_THEME: GroupThemeId;        // 'default'
+export function isGroupThemeId(value: unknown): value is GroupThemeId;
+export function groupThemeInfo(id?: string): GroupThemeInfo;   // missing or unknown id → the default theme
+export function tintRgb(tint): string;  export function tintRgba(tint, alpha): string;
+```
+`Group.theme?: GroupThemeId` (types.ts): missing or unknown means 'default'. `createGroup` takes an optional `theme`; `updateGroup({ theme })` changes it and is logged as 'changed the theme of "X" to Beach'. `parsePersistedState` drops a theme it does not know instead of failing the load (a failed load replaces the user's data with the demo). The demo seeds Goa Trip as 'beach' and Flat 302 as 'home'; Splitwise imports have no theme.
+
 ---------------------------------------------------------------------------------------------
 ## 4. `src/ocr` — bill scanning
 
@@ -398,7 +409,7 @@ export interface StoreActions {
   updatePerson(id: ID, patch: Partial<Omit<Person, 'id' | 'createdAt'>>): void;
   removeFriend(id: ID): { ok: boolean; reason?: string };          // refuses if any unsettled balance or shared group
   restoreFriend(id: ID): void;                                      // a removed friend back on the friends list
-  createGroup(input: { name: string; type: GroupType; emoji: string; memberIds: ID[]; defaultCurrency: CurrencyCode; simplifyDebts: boolean }): Group;  // ME_ID always added
+  createGroup(input: { name: string; type: GroupType; emoji: string; memberIds: ID[]; defaultCurrency: CurrencyCode; simplifyDebts: boolean; theme?: GroupThemeId }): Group;  // ME_ID always added
   updateGroup(id: ID, patch: Partial<Omit<Group, 'id' | 'createdAt'>>): void;
   addGroupMember(groupId: ID, personId: ID): void;
   removeGroupMember(groupId: ID, personId: ID): { ok: boolean; reason?: string };   // refuses if member has non-zero balance in group
@@ -522,6 +533,8 @@ LoadingOverlay({ visible, message? })
 ```
 ### ui/Backdrop.tsx, ui/GoldWash.tsx, ui/gradients.ts, ui/fonts.ts
 `Screen` draws `Backdrop` behind its content: a gold glow at the top plus six overlapping circles (`layer1`-`layer3`, two corners; no scrolling, no touches). `GoldWash` is the first child of a balance `Card` (card gets `overflow: 'hidden'`). `gradients.ts` holds the two tiny white alpha PNGs (`GLOW_PNG`, `WASH_PNG`, base64) that `tintColor` colours, since there is no gradient library.
+`GroupThemeTile` (`ui/GroupThemeTile.tsx`) is a group's tile (height about 104, `radius.lg`, 1 px border, clipped): card colour, the theme's drawing on the right (`ui/groupThemeArt.ts`: per theme a white-on-transparent `lines` PNG and `fills` PNG at 488 x 192, from `toolsuild-group-theme-art.ps1`; lines tinted `accentLine`, fills in the theme tint at alpha 0.16 light / 0.30 dark), a horizontal fade of the card colour (`FADE_RIGHT_PNG`, opaque left to transparent at 60%) so the name stays readable, and a diagonal tint wash (`WASH_PNG`, opacity 0.26 / 0.46). `useThemeLook(theme)` gives the same colours to the group banner and the picker thumbnails. `gradients.ts` also has `FADE_DOWN_PNG` (opaque top to transparent bottom).
+
 `fonts.ts` loads Cormorant Garamond Bold (OFL, static TTF from `@expo-google-fonts/cormorant-garamond@0.4.1` via jsDelivr) with `expo-font`: `loadTitleFont()` (called in App.tsx), `useTitleFont()` (re-renders when ready), `useFontSettled()` (App shows its loading screen for at most 2.5 s). Only `AppText` `title` (27, letterSpacing 0.2, no fontWeight; `plain` keeps the system font for values such as amounts) and navigation header titles (22) use it; if loading fails they stay in the system font.
 
 ### ui/dialogs.ts
@@ -557,12 +570,12 @@ dynamic.
 
 | Route | File | Purpose |
 |---|---|---|
-| Tabs › Groups | `screens/groups/GroupsScreen.tsx` | Overall balance card (`overallSummary`), list of groups with my balance per group + avatars, "Non-group expenses" row, "Add a group" row (hint "New · Join · Import"; Join only when sync is configured) that opens `components/AddGroupSheet.tsx` (a `Sheet` with Start a new group → GroupEdit, Join a group → JoinGroup, Import an existing group → ImportSplitwise; the screen opens from `Sheet.onClosed`, after the sheet is gone, because iOS cannot present a modal while another is fading out). Option texts and the hint live in `addGroupMenu.ts` (also used by Settings and the invite message). With no groups at all: EmptyState "Start a new group" plus Join a group and Import an existing group buttons. Search icon in header → Search |
+| Tabs › Groups | `screens/groups/GroupsScreen.tsx` | Overall balance card (`overallSummary`), list of groups, each a `GroupThemeTile` (emoji, name in the title font, my balance, avatars and people count; the Default theme uses the default drawing), "Non-group expenses" row, "Add a group" row (hint "New · Join · Import"; Join only when sync is configured) that opens `components/AddGroupSheet.tsx` (a `Sheet` with Start a new group → GroupEdit, Join a group → JoinGroup, Import an existing group → ImportSplitwise; the screen opens from `Sheet.onClosed`, after the sheet is gone, because iOS cannot present a modal while another is fading out). Option texts and the hint live in `addGroupMenu.ts` (also used by Settings and the invite message). With no groups at all: EmptyState "Start a new group" plus Join a group and Import an existing group buttons. Search icon in header → Search |
 | Tabs › Friends | `screens/friends/FriendsScreen.tsx` | Overall balance, filter chips (All / Owe you / You owe / Settled), friends with `friendBalance`, "Add friend" |
 | Tabs › Activity | `screens/activity/ActivityScreen.tsx` | Feed grouped by day, icon per type, amount impact for me, tap → ExpenseDetail / PaymentDetail / GroupDetail |
 | Tabs › Account | `screens/account/AccountScreen.tsx` | Your name/email (edit), default currency, link to Settings, stats (groups, friends, expenses), app info |
-| GroupDetail | `screens/groups/GroupDetailScreen.tsx` | Header (emoji, name, type, members), my balance + top debts lines ('Aarav owes you ₹500'), action row: Settle up · Balances · Totals · Export CSV · Scan bill; timeline grouped by month (expense rows: date, category icon, description, 'Bhavna paid ₹1,460', 'you lent ₹300' coloured; payment rows), Fab "Add expense"; header gear → GroupEdit |
-| GroupEdit | `screens/groups/GroupEditScreen.tsx` | Create/edit: name, type segmented, emoji picker (grid of ~24), members (pick friends with checkboxes + 'Add new person' inline), default currency, simplify debts switch with explanation; edit mode: archive, delete group (confirm; blocked unless settled), remove member (blocked if balance ≠ 0) |
+| GroupDetail | `screens/groups/GroupDetailScreen.tsx` | Transparent navigation header (no title; back and settings in `colors.primary`), then `components/GroupThemeBanner.tsx`: a full-width, borderless banner (200 high plus the top inset) whose tint fades out downwards, the theme drawing top right below the header buttons, and emoji, name (title font) and 'Trip · 5 people' bottom left; the info card (members) climbs 24 px into it (gold top line, `GoldWash`); my balance + top debts lines ('Aarav owes you ₹500'), action row: Settle up · Balances · Totals · Export CSV · Scan bill; timeline grouped by month (expense rows: date, category icon, description, 'Bhavna paid ₹1,460', 'you lent ₹300' coloured; payment rows), Fab "Add expense"; header gear → GroupEdit |
+| GroupEdit | `screens/groups/GroupEditScreen.tsx` | Create/edit: name, type segmented, emoji picker (grid of ~24), theme (`components/GroupThemePicker.tsx`: thumbnails four per row, the selected one ringed in `accentLine`, a preview tile under them; in a shared group the line 'Everyone in a shared group sees the same theme.'), members (pick friends with checkboxes + 'Add new person' inline), default currency, simplify debts switch with explanation; edit mode: archive, delete group (confirm; blocked unless settled), remove member (blocked if balance ≠ 0) |
 | GroupBalances | `screens/groups/GroupBalancesScreen.tsx` | Per member net (green/orange), list of debts (simplified or pairwise per setting) each with 'Settle up' and 'Remind' (shareText) buttons; note explaining simplify |
 | GroupTotals | `screens/groups/GroupTotalsScreen.tsx` | Per currency: total group spending, your share, you paid; horizontal bar chart by category (View bars, category colours), by month, by payer |
 | FriendDetail | `screens/friends/FriendDetailScreen.tsx` | Avatar, balance (`friendBalance`), breakdown by group, Settle up / Remind / Pay via UPI, shared timeline, header edit → FriendEdit, Add expense with friend |
@@ -664,6 +677,7 @@ Edge profile). Nothing is installed or written outside the topic folder.
   (react 19.2, react-native 0.83, @react-navigation 7, expo-image-picker/manipulator 55,
   async-storage 2.2, safe-area-context 5.6, @expo/vector-icons 15); fallback: ambient
   `declare module` shims. Prints `file(line,col): error TSxxxx: message`; exit 1 on errors.
+- `tools/build-group-theme-art.ps1` — redraws `app/src/ui/groupThemeArt.ts` from the SVG source in `tools/group-theme-art/themes.js` with a `<canvas>` (`-Scale 1.5` if the file gets too big; at 2 it is about 170 KB).
 - `tools/build-snack-launcher.ps1` — writes `open-in-snack.html`: an auto-styled page with
   a "Run SplitSnap in Expo Snack" button that loads Snack's embedded editor
   (`https://snack.expo.dev/embedded`) on the page and, once it signals ready, sends it the fields
@@ -676,6 +690,9 @@ Edge profile). Nothing is installed or written outside the topic folder.
 
 Snack dependencies (versions pinned where Snack can't infer them):
 `@react-navigation/native@7.5.0,@react-navigation/native-stack@7.20.0,@react-navigation/bottom-tabs@7.20.0,react-native-screens,react-native-safe-area-context,@react-native-async-storage/async-storage,expo-image-picker,expo-image-manipulator,expo-document-picker,expo-font,@expo/vector-icons,@supabase/supabase-js,react-native-url-polyfill`
+
+### Group themes and the server
+`supabase/setup.sql` keeps group fields in fixed columns and `push_changes` / `share_group` read named keys of the JSON they are given (`x ->> 'name'`, …). The app therefore sends `theme` as one more key of the group object (`PushGroup.theme`, omitted when the group never chose one): a server that has not run `supabase/add_group_theme.sql` ignores it, so pushes are unchanged there and each phone keeps its own theme. After the upgrade `groups.theme` (nullable text, null = never chosen) is written by those functions and read with the other columns (`select *`, Realtime rows). A pulled row without a usable theme never replaces a theme chosen on the phone (`readGroup`); a row with one does. Tests: `tests/sync/engine.test.ts` ('group themes', with `FakeServer({ themeColumn })` and `addThemeColumn()`), `rows.test.ts`, `diff.test.ts`.
 
 ---------------------------------------------------------------------------------------------
 ## 10. Why Expo SDK 54 (decided 2026-10-16, tested in Snack)

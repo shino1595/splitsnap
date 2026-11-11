@@ -77,8 +77,12 @@ export class FakeServer {
   private queued = 0;
   private callbackErrors: unknown[] = [];
 
+  /** True = the server has run supabase/add_group_theme.sql: groups then have a nullable theme column. */
+  private themeColumn: boolean;
+
   /** `clock` returns ms; by default every write is 1 ms after the previous one. */
-  constructor(opts: { clock?: () => number } = {}) {
+  constructor(opts: { clock?: () => number; themeColumn?: boolean } = {}) {
+    this.themeColumn = opts.themeColumn ?? false;
     let last = START_MS;
     this.clock = opts.clock ?? (() => (last += 1));
   }
@@ -115,6 +119,12 @@ export class FakeServer {
     for (const sub of this.subscriptions) {
       if (sub.phone === phone) this.later(() => sub.active && sub.onStatus(status));
     }
+  }
+
+  /** Runs supabase/add_group_theme.sql on a server that started without the column: existing groups get theme = null. */
+  addThemeColumn(): void {
+    this.themeColumn = true;
+    for (const g of this.db.rows.groups.values()) g.theme = null;
   }
 
   /** The raw tables (copies), for assertions. */
@@ -306,6 +316,7 @@ export class FakeServer {
         updated_at: tx.now,
         updated_by: uid,
         deleted_at: null,
+        ...(this.themeColumn ? { theme: text(field(g, 'theme')) } : {}),
       };
       checkGroup(group);
       this.save(tx, 'groups', group);
@@ -359,6 +370,7 @@ export class FakeServer {
           deleted_at: bool(field(x, 'deleted')) ? g.deleted_at ?? tx.now : g.deleted_at,
           updated_at: tx.now,
           updated_by: uid,
+          ...(this.themeColumn ? { theme: text(field(x, 'theme')) ?? g.theme ?? null } : {}),
         };
         checkGroup(next);
         this.save(tx, 'groups', next);
@@ -612,6 +624,7 @@ function checkGroup(g: GroupRow): void {
   check(lengthIn(g.type, 1, 20), 'groups', 'type length');
   check(lengthIn(g.emoji, 1, 16), 'groups', 'emoji length');
   check(lengthIn(g.default_currency, 3, 3), 'groups', 'default_currency length');
+  check(g.theme === undefined || g.theme === null || lengthIn(g.theme, 1, 20), 'groups', 'theme length');
 }
 
 function checkMember(m: MemberRow): void {

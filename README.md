@@ -53,6 +53,11 @@ If the phone shows an error screen, tap **View error log** to see the details.
 - Each group has a timeline by month, its balances (who owes whom, with Settle up and Remind),
   totals with charts (by category, month and payer) and a CSV export.
 - Groups can be archived, and deleted once everyone is settled up.
+- Each group has a **theme**: Default, Beach, Mountains, Home, Office, Friends, Fitness, Groceries,
+  Music or Dining. Pick it when you create the group or in its settings (**Theme**, four to a row
+  with a preview). It shows as the group's tile on the Groups tab and fades in at the top of the
+  group's screen. In a shared group everyone sees the same theme, once the server has been
+  upgraded (see section 5).
 - **Add a group** (the row under your groups) opens a menu: **Start a new group**, **Join a
   group** with a code a friend shared, or **Import an existing group**. With no groups yet, all
   three are buttons on the Groups tab.
@@ -187,6 +192,9 @@ Everything is stored **on the device or browser** that runs the app, except two 
   free Supabase database) so its members can use it from their own phones: its name, emoji and
   settings, its members' names, and its expenses, payments, comments and activity. Bill photos
   are not uploaded.
+  A group's theme is part of its settings. A server set up before themes existed needs
+  `supabasedd_group_theme.sql` run once (Supabase dashboard, SQL Editor, paste, Run) to carry
+  themes: until then each phone keeps the theme it chose and nothing else changes.
 - **Bill photos you scan.** They go to OCR.space to be read.
 
 Groups you haven't shared, expenses and payments with friends outside a group, and your settings

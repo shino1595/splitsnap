@@ -23,7 +23,8 @@ function groupChanged(a: Group, b: Group): boolean {
     a.emoji !== b.emoji ||
     a.defaultCurrency !== b.defaultCurrency ||
     a.simplifyDebts !== b.simplifyDebts ||
-    !!a.archived !== !!b.archived
+    !!a.archived !== !!b.archived ||
+    a.theme !== b.theme
   );
 }
 

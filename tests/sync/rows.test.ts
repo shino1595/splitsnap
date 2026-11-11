@@ -803,3 +803,47 @@ describe('timeOf', () => {
     expect(timeOf(null)).toBeNull();
   });
 });
+
+describe('group theme in rows', () => {
+  const withTheme = (theme?: string): AppState => {
+    const s = aaravsPhone();
+    return { ...s, groups: { ...s.groups, [GOA]: { ...s.groups[GOA], ...(theme ? { theme: theme as 'beach' } : {}) } } };
+  };
+
+  it('sends the theme only when the group has a known one', () => {
+    expect(pushGroup(withTheme('beach').groups[GOA]).theme).toBe('beach');
+    expect('theme' in pushGroup(withTheme().groups[GOA])).toBe(false);
+    expect('theme' in pushGroup(withTheme('space').groups[GOA])).toBe(false);
+    expect(shareRequest(withTheme('home'), GOA, 'u_new01', 'Aarav').group.theme).toBe('home');
+  });
+
+  it('reads the theme from a row that has one', () => {
+    const { local } = batchToLocal(batchOf({ groups: [groupRow({ theme: 'mountains' })] }), syncWith(AARAV_INFO), aaravsPhone());
+    expect(local.groups[0].theme).toBe('mountains');
+  });
+
+  it('keeps the theme chosen on this phone when the row has none (old server or never chosen)', () => {
+    const rows: Partial<GroupRow>[] = [{}, { theme: null }, { theme: '' }, { theme: 'space' }, { theme: 42 as unknown as string }];
+    for (const extra of rows) {
+      const { local, skipped } = batchToLocal(batchOf({ groups: [groupRow(extra)] }), syncWith(AARAV_INFO), withTheme('beach'));
+      expect(skipped).toEqual([]);
+      expect(local.groups[0].theme).toBe('beach');
+    }
+  });
+
+  it('has no theme when neither the row nor the phone has one', () => {
+    const { local } = batchToLocal(batchOf({ groups: [groupRow({ theme: null })] }), syncWith(AARAV_INFO), aaravsPhone());
+    expect('theme' in local.groups[0]).toBe(false);
+  });
+
+  it('lets an explicit server theme replace the local one', () => {
+    const { local } = batchToLocal(batchOf({ groups: [groupRow({ theme: 'default' })] }), syncWith(AARAV_INFO), withTheme('beach'));
+    expect(local.groups[0].theme).toBe('default');
+  });
+
+  it('keeps the theme when only a new member arrives', () => {
+    const rows = batchOf({ members: [memberRow('u_new', 'Diya')] });
+    const { local } = batchToLocal(rows, syncWith(AARAV_INFO), withTheme('beach'));
+    expect(local.groups.every((g) => g.theme === 'beach')).toBe(true);
+  });
+});

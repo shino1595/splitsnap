@@ -12,6 +12,7 @@ import type {
   Expense,
   ExpenseInput,
   Group,
+  GroupThemeId,
   GroupType,
   ID,
   ISODate,
@@ -28,6 +29,7 @@ import { avatarPalette } from '../theme';
 import { computeOwed, validatePayers } from '../lib/split';
 import { sumMinor } from '../lib/money';
 import { advance, dueDates } from '../lib/recurrence';
+import { isGroupThemeId } from '../lib/groupThemes';
 import { canDeleteGroup, canRemoveFriend, canRemoveGroupMember } from './selectors';
 import { blankState } from './stateShape';
 import * as text from './activityText';
@@ -51,6 +53,7 @@ export interface GroupInput {
   memberIds: ID[];
   defaultCurrency: CurrencyCode;
   simplifyDebts: boolean;
+  theme?: GroupThemeId;
 }
 
 export type PersonPatch = Partial<Omit<Person, 'id' | 'createdAt'>>;
@@ -208,6 +211,7 @@ export function buildGroup(state: AppState, id: ID, input: GroupInput, at: ISODa
     simplifyDebts: input.simplifyDebts,
     defaultCurrency: input.defaultCurrency || state.settings.defaultCurrency,
     createdAt: at,
+    ...(isGroupThemeId(input.theme) ? { theme: input.theme } : {}),
   };
 }
 

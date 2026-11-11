@@ -35,6 +35,8 @@ create table public.groups (
   default_currency text not null default 'INR' check (char_length(default_currency) = 3),
   simplify_debts boolean not null default true,
   archived boolean not null default false,
+  -- Look chosen for the group (app/src/lib/groupThemes.ts); null = never chosen, shown as the default.
+  theme text check (char_length(theme) between 1 and 20),
   -- 8 characters, set by the insert trigger; reset with reset_join_code().
   join_code text unique,
   join_enabled boolean not null default true,
@@ -297,8 +299,8 @@ grant select on public.profiles, public.groups, public.group_members, public.exp
 grant insert (id, display_name) on public.profiles to authenticated;
 -- id too, because a PostgREST upsert also SETs the key; the policy pins id to you anyway.
 grant update (id, display_name) on public.profiles to authenticated;
-grant insert (id, name, type, emoji, default_currency, simplify_debts, archived) on public.groups to authenticated;
-grant update (name, type, emoji, default_currency, simplify_debts, archived, deleted_at) on public.groups to authenticated;
+grant insert (id, name, type, emoji, default_currency, simplify_debts, archived, theme) on public.groups to authenticated;
+grant update (name, type, emoji, default_currency, simplify_debts, archived, theme, deleted_at) on public.groups to authenticated;
 grant insert (group_id, id, user_id, name, color) on public.group_members to authenticated;
 grant update (name, color) on public.group_members to authenticated;
 grant insert (id, group_id, data, deleted_at) on public.expenses, public.payments to authenticated;
@@ -329,7 +331,7 @@ begin
     raise exception 'You must be one of the members' using errcode = '22023';
   end if;
 
-  insert into public.groups (id, name, type, emoji, default_currency, simplify_debts, archived)
+  insert into public.groups (id, name, type, emoji, default_currency, simplify_debts, archived, theme)
   values (
     gid,
     p_group ->> 'name',
@@ -337,7 +339,8 @@ begin
     coalesce(p_group ->> 'emoji', '👥'),
     coalesce(p_group ->> 'defaultCurrency', 'INR'),
     coalesce((p_group ->> 'simplifyDebts')::boolean, true),
-    coalesce((p_group ->> 'archived')::boolean, false)
+    coalesce((p_group ->> 'archived')::boolean, false),
+    p_group ->> 'theme'
   );
 
   insert into public.group_members (group_id, id, user_id, name, color)
@@ -380,6 +383,7 @@ begin
     default_currency = coalesce(x ->> 'defaultCurrency', g.default_currency),
     simplify_debts = coalesce((x ->> 'simplifyDebts')::boolean, g.simplify_debts),
     archived = coalesce((x ->> 'archived')::boolean, g.archived),
+    theme = coalesce(x ->> 'theme', g.theme),
     deleted_at = case when coalesce((x ->> 'deleted')::boolean, false) then coalesce(g.deleted_at, now()) else g.deleted_at end
   from jsonb_array_elements(coalesce(p -> 'groups', '[]'::jsonb)) x
   where g.id = x ->> 'id';

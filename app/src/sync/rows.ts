@@ -47,6 +47,7 @@ import type {
 } from './types';
 import { CATEGORIES } from '../lib/categories';
 import { computeOwed } from '../lib/split';
+import { isGroupThemeId } from '../lib/groupThemes';
 import { avatarPalette } from '../theme';
 import { remapActivity, remapComment, remapExpense, remapPayment, toLocalId, toServerId } from './idMap';
 
@@ -72,6 +73,8 @@ export function pushGroup(group: Group): PushGroup {
     defaultCurrency: group.defaultCurrency,
     simplifyDebts: !!group.simplifyDebts,
     archived: !!group.archived,
+    // Left out when never chosen, so a server that has a theme keeps its own.
+    ...(isGroupThemeId(group.theme) ? { theme: group.theme } : {}),
   };
 }
 
@@ -518,6 +521,8 @@ function readGroup(row: GroupRow, memberIds: ID[], existing: Group | undefined):
     defaultCurrency: row.default_currency,
     createdAt,
     archived: row.archived ? true : undefined,
+    // The row may have no theme (old server, or never chosen): the one chosen on this phone stays.
+    theme: isGroupThemeId(row.theme) ? row.theme : existing && isGroupThemeId(existing.theme) ? existing.theme : undefined,
   });
 }
 

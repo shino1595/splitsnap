@@ -29,3 +29,4 @@ export * from './SwitchRow';
 export * from './TextField';
 export * from './Backdrop';
 export * from './GoldWash';
+export * from './GroupThemeTile';

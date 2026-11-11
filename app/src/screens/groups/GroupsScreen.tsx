@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ME_ID } from '../../types';
 import type { CurrencyAmounts } from '../../types';
 import type { TabScreenProps } from '../../navigation/types';
@@ -10,12 +10,12 @@ import type { BalanceSummary } from '../../lib/balances';
 import { formatCurrencyAmounts } from '../../lib/money';
 import { useSync } from '../../sync/SyncProvider';
 import { colors, radius, spacing, themed } from '../../theme';
-import { AppText, AvatarStack, Button, Card, EmptyState, GoldWash, Icon, IconButton, Screen, SectionHeader, wrapFriendlyAmounts } from '../../ui';
+import { AppText, AvatarStack, Button, Card, EmptyState, GoldWash, GroupThemeTile, Icon, IconButton, Screen, SectionHeader, wrapFriendlyAmounts } from '../../ui';
 import { ADD_GROUP_TITLE, IMPORT_GROUP_TITLE, JOIN_GROUP_TITLE, addGroupHint, addGroupRowLabel } from './addGroupMenu';
 import type { AddGroupChoice } from './addGroupMenu';
 import { AddGroupSheet } from './components/AddGroupSheet';
 import { BalanceHeadline, balanceSentence } from './components/BalanceBits';
-import { GroupAvatar, IconTile } from './components/GroupAvatar';
+import { IconTile } from './components/GroupAvatar';
 import { ListCard } from './components/ListCard';
 import { TimelineList } from './components/TimelineList';
 import { memberCountLabel, plural } from './components/groupMeta';
@@ -25,7 +25,6 @@ import type { GroupRowData } from './groupLogic';
 type Props = TabScreenProps<'Groups'>;
 
 const AVATAR_SIZE = 52;
-const ROW_DIVIDER_INSET = spacing.lg + AVATAR_SIZE + spacing.md;
 
 function Stat({ label, value, color }: { label: string; value: string; color: string }) {
   return (
@@ -88,13 +87,19 @@ function GroupRow({ row, onPress }: { row: GroupRowData; onPress: () => void }) 
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`${group.name}, ${memberCountLabel(members.length)}, ${balanceSentence(balance, 'you are owed', 'you owe', emptyLabel)}`}
-      style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+      style={({ pressed }) => pressed && styles.tilePressed}
     >
-      <GroupAvatar group={group} size={AVATAR_SIZE} />
-      <View style={styles.rowMiddle}>
-        <AppText weight="semibold" numberOfLines={2}>
-          {group.name}
-        </AppText>
+      <GroupThemeTile theme={group.theme}>
+        <View style={styles.tileTitle}>
+          {group.emoji ? (
+            <Text style={styles.tileEmoji} allowFontScaling={false}>
+              {group.emoji}
+            </Text>
+          ) : null}
+          <AppText variant="title" weight="bold" numberOfLines={2} style={styles.tileName}>
+            {group.name}
+          </AppText>
+        </View>
         <RowBalance amounts={balance} emptyLabel={emptyLabel} />
         <View style={styles.rowMeta}>
           <AvatarStack people={members} size={20} max={5} />
@@ -102,8 +107,7 @@ function GroupRow({ row, onPress }: { row: GroupRowData; onPress: () => void }) 
             {memberCountLabel(members.length)}
           </AppText>
         </View>
-      </View>
-      <Icon name="chevron-forward" size={18} color={colors.textFaint} />
+      </GroupThemeTile>
     </Pressable>
   );
 }
@@ -227,11 +231,11 @@ export default function GroupsScreen({ navigation }: Props) {
 
         <SectionHeader title="Groups" />
         {rows.current.length > 0 ? (
-          <ListCard dividerInset={ROW_DIVIDER_INSET}>
+          <View style={styles.tiles}>
             {rows.current.map((row) => (
               <GroupRow key={row.group.id} row={row} onPress={() => openGroup(row.group.id)} />
             ))}
-          </ListCard>
+          </View>
         ) : (
           <Card>
             <AppText variant="caption">
@@ -287,11 +291,11 @@ export default function GroupsScreen({ navigation }: Props) {
               style={styles.archivedToggle}
             />
             {showArchived ? (
-              <ListCard dividerInset={ROW_DIVIDER_INSET}>
+              <View style={styles.tiles}>
                 {rows.archived.map((row) => (
                   <GroupRow key={row.group.id} row={row} onPress={() => openGroup(row.group.id)} />
                 ))}
-              </ListCard>
+              </View>
             ) : null}
           </View>
         ) : null}
@@ -326,7 +330,12 @@ const styles = themed((colors) => StyleSheet.create({
   pressed: { backgroundColor: colors.background },
   rowMiddle: { flex: 1, minWidth: 0, gap: spacing.xs },
   bottomRoom: { paddingBottom: spacing.xxl + spacing.sm },
-  rowMeta: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  rowMeta: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xxs },
+  tiles: { gap: spacing.md },
+  tilePressed: { opacity: 0.85 },
+  tileTitle: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, maxWidth: '78%' },
+  tileEmoji: { fontSize: 18, lineHeight: 24, includeFontPadding: false },
+  tileName: { flexShrink: 1, fontSize: 22, lineHeight: 26 },
   shrink: { flexShrink: 1 },
   addRow: {
     flexDirection: 'row',

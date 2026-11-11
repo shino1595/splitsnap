@@ -473,3 +473,35 @@ describe('persisted state', () => {
     expect(parsed && parsed.settings.ocrEngine).toBe(2);
   });
 });
+
+describe('group themes in the store', () => {
+  const input = { name: 'Goa', type: 'trip' as const, emoji: '🏖️', memberIds: [A], defaultCurrency: 'INR', simplifyDebts: true };
+
+  it('creates a group with the chosen theme, or without one', () => {
+    const themed = run(makeState(), { type: 'group/create', id: 'g_t', input: { ...input, theme: 'beach' }, ...stamp() });
+    expect(themed.groups.g_t.theme).toBe('beach');
+    const plain = run(makeState(), { type: 'group/create', id: 'g_p', input, ...stamp() });
+    expect('theme' in plain.groups.g_p).toBe(false);
+    const bogus = run(makeState(), { type: 'group/create', id: 'g_b', input: { ...input, theme: 'space' as never }, ...stamp() });
+    expect('theme' in bogus.groups.g_b).toBe(false);
+  });
+
+  it('changes the theme through an update and logs it like other group edits', () => {
+    const state = makeState();
+    const next = run(state, { type: 'group/update', id: TRIP, patch: { theme: 'mountains' }, ...stamp() });
+    expect(next.groups[TRIP].theme).toBe('mountains');
+    expect(next.activity[0].type).toBe('group_updated');
+    expect(next.activity[0].groupId).toBe(TRIP);
+    expect(next.activity[0].summary).toBe('You changed the theme of "Trip" to Mountains.');
+    const back = run(next, { type: 'group/update', id: TRIP, patch: { theme: 'default' }, ...stamp() });
+    expect(back.groups[TRIP].theme).toBe('default');
+    expect(back.activity[0].summary).toBe('You changed the theme of "Trip" to Default.');
+  });
+
+  it('treats a missing theme and "default" as the same, so that update is a no-op in the log', () => {
+    const state = makeState();
+    const next = run(state, { type: 'group/update', id: TRIP, patch: { theme: 'default' }, ...stamp() });
+    expect(next.activity.length).toBe(state.activity.length + 1);
+    expect(run(next, { type: 'group/update', id: TRIP, patch: { theme: 'default' }, ...stamp() })).toBe(next);
+  });
+});

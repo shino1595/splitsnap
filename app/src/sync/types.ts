@@ -1,6 +1,6 @@
 // Contract for shared-group sync (docs/SYNC_DESIGN.md). Server rows mirror supabase/setup.sql;
 // everything else is the app's own model. Nothing here imports Supabase.
-import type { Activity, Comment, CurrencyCode, Expense, Group, GroupType, ID, ISODateTime, Payment, Person } from '../types';
+import type { Activity, Comment, CurrencyCode, Expense, Group, GroupThemeId, GroupType, ID, ISODateTime, Payment, Person } from '../types';
 
 // ---------- Local bookkeeping (AsyncStorage 'splitsnap/sync/v1', never inside AppState) ----------
 
@@ -66,6 +66,8 @@ export interface GroupRow {
   updated_at: ISODateTime;
   updated_by: string | null;
   deleted_at: ISODateTime | null;
+  /** Only on a server that has run supabase/add_group_theme.sql; null = never chosen. */
+  theme?: string | null;
 }
 
 export interface MemberRow {
@@ -130,6 +132,8 @@ export interface PushGroup {
   defaultCurrency: CurrencyCode;
   simplifyDebts: boolean;
   archived: boolean;
+  /** A server without the theme column ignores it: push_changes and share_group read named keys only. */
+  theme?: GroupThemeId;
 }
 
 /** A shared group deleted on this phone: only the id travels (push_changes keeps the other fields). */

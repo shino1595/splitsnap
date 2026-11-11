@@ -1,8 +1,9 @@
 import { ME_ID } from '../../app/src/types';
 import type { AppState } from '../../app/src/types';
 import { createDemoState } from '../../app/src/store/seed';
-import { blankState, demoKeepingProfile } from '../../app/src/store/stateShape';
+import { blankState, demoKeepingProfile, parsePersistedState } from '../../app/src/store/stateShape';
 import { wrapFriendlyAmounts } from '../../app/src/ui/amountText';
+import { groupThemeInfo } from '../../app/src/lib/groupThemes';
 
 const TODAY = '2026-10-19';
 
@@ -56,5 +57,48 @@ describe('wrapFriendlyAmounts', () => {
   it('leaves single amounts and empty text alone', () => {
     expect(wrapFriendlyAmounts('₹1,33,460.00')).toBe('₹1,33,460.00');
     expect(wrapFriendlyAmounts('')).toBe('');
+  });
+});
+
+describe('saved state and group themes', () => {
+  function saved(theme: unknown, hasTheme = true): string {
+    const demo = createDemoState(TODAY);
+    const groups = Object.fromEntries(
+      Object.entries(demo.groups).map(([id, g]) => {
+        const { theme: _drop, ...rest } = g;
+        return [id, hasTheme ? { ...rest, theme } : rest];
+      }),
+    );
+    return JSON.stringify({ ...demo, groups });
+  }
+
+  it('loads states saved before themes existed', () => {
+    const state = parsePersistedState(saved(undefined, false));
+    expect(state).not.toBeNull();
+    for (const g of Object.values(state!.groups)) expect(g.theme).toBeUndefined();
+  });
+
+  it('keeps a known theme', () => {
+    const state = parsePersistedState(saved('dining'));
+    expect(state).not.toBeNull();
+    for (const g of Object.values(state!.groups)) expect(g.theme).toBe('dining');
+  });
+
+  it('does not fail the load on an unknown theme, and reads it as the default', () => {
+    for (const odd of ['space', '', 7, null, { a: 1 }]) {
+      const state = parsePersistedState(saved(odd));
+      expect(state).not.toBeNull();
+      for (const g of Object.values(state!.groups)) {
+        expect(g.theme).toBeUndefined();
+        expect(groupThemeInfo(g.theme).id).toBe('default');
+      }
+      expect(Object.keys(state!.groups).length).toBeGreaterThan(0);
+    }
+  });
+
+  it('seeds the demo with Goa Trip on the beach and Flat 302 at home', () => {
+    const groups = Object.values(createDemoState(TODAY).groups);
+    expect(groups.find((g) => g.name === 'Goa Trip')!.theme).toBe('beach');
+    expect(groups.find((g) => g.name === 'Flat 302')!.theme).toBe('home');
   });
 });

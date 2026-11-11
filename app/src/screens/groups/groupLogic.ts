@@ -8,6 +8,7 @@ import type {
   Debt,
   Expense,
   Group,
+  GroupThemeId,
   GroupType,
   ID,
   ISODate,
@@ -211,6 +212,8 @@ export interface GroupFormFields {
   currency: CurrencyCode;
   simplify: boolean;
   archived: boolean;
+  /** Missing counts as the default theme. */
+  theme?: GroupThemeId;
 }
 
 /**
@@ -227,6 +230,7 @@ export function changedGroupFields(start: GroupFormFields, now: GroupFormFields)
   if (now.simplify !== start.simplify) patch.simplifyDebts = now.simplify;
   // undefined (not false) when unarchived, so a never-archived group stays identical.
   if (now.archived !== start.archived) patch.archived = now.archived ? true : undefined;
+  if ((now.theme ?? 'default') !== (start.theme ?? 'default')) patch.theme = now.theme ?? 'default';
   return patch;
 }
 

@@ -3,6 +3,7 @@
 import { ME_ID } from '../types';
 import type { Activity, AppState, Expense, Group, ID, Payment, Person, Settings } from '../types';
 import { formatMoney } from '../lib/money';
+import { groupThemeInfo } from '../lib/groupThemes';
 import { personName } from './selectors';
 
 /** 'You' / 'Aarav' — the subject at the start of a sentence. */
@@ -84,6 +85,9 @@ export function groupUpdatedText(state: AppState, actorId: ID, before: Group, af
   if (before.archived && !after.archived) return `${who} unarchived "${after.name}".`;
   if (before.simplifyDebts !== after.simplifyDebts) {
     return `${who} turned ${after.simplifyDebts ? 'on' : 'off'} simplify debts in "${after.name}".`;
+  }
+  if ((before.theme ?? 'default') !== (after.theme ?? 'default')) {
+    return `${who} changed the theme of "${after.name}" to ${groupThemeInfo(after.theme).label}.`;
   }
   return `${who} updated the group "${after.name}".`;
 }

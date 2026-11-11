@@ -2,7 +2,7 @@
 // against one FakeServer. Engine timers are fake and per phone; live updates arrive through the
 // server's setTimeout(0), so settle() runs both until nothing moves.
 import { ME_ID } from '../../app/src/types';
-import type { AppState, Expense, ExpenseInput, ID, Person, Recurrence } from '../../app/src/types';
+import type { AppState, Expense, ExpenseInput, GroupThemeId, ID, Person, Recurrence } from '../../app/src/types';
 import { appReducer, processRecurring } from '../../app/src/store/reducer';
 import type { AppAction } from '../../app/src/store/reducer';
 import { groupNets, personName } from '../../app/src/store/selectors';
@@ -912,5 +912,102 @@ describe('syncStorage', () => {
     expect(await loadSyncState()).toEqual(good);
     await saveSyncState(EMPTY_SYNC_STATE);
     expect(sharedGroupIdsNow()).toEqual([]);
+  });
+});
+
+describe('SyncEngine: group themes', () => {
+  const setTheme = (p: { store: { dispatch: (a: AppAction) => void }; stamp: () => { at: string; activityId: string } }, theme: GroupThemeId) =>
+    p.store.dispatch({ type: 'group/update', id: GOA, patch: { theme }, ...p.stamp() });
+  const serverTheme = (server: FakeServer): unknown => (server.rows().groups[0] as { theme?: unknown }).theme;
+
+  describe('on a server without the theme column (setup.sql as it was)', () => {
+    it('pushes a theme change without failing, and the row has no theme', async () => {
+      const server = new FakeServer();
+      const { w, aarav, bhavna } = await sharedPair(undefined, server);
+      setTheme(aarav, 'beach');
+      await w.settle();
+      expect(aarav.api().pending).toBe(0);
+      expect('theme' in server.rows().groups[0]).toBe(false);
+      expect(aarav.state().groups[GOA].theme).toBe('beach');
+      expect(bhavna.state().groups[GOA].theme).toBeUndefined();
+    });
+
+    it('keeps the theme on the phone through pulls and other members\' edits', async () => {
+      const { w, aarav, bhavna } = await sharedPair(undefined, new FakeServer());
+      setTheme(aarav, 'mountains');
+      await w.settle();
+      bhavna.store.dispatch({ type: 'group/update', id: GOA, patch: { name: 'Goa 2026' }, ...bhavna.stamp() });
+      await w.settle();
+      expect(aarav.state().groups[GOA].name).toBe('Goa 2026');
+      expect(aarav.state().groups[GOA].theme).toBe('mountains');
+      await aarav.api().syncNow();
+      await w.settle();
+      expect(aarav.state().groups[GOA].theme).toBe('mountains');
+    });
+
+    it('still shares a group that has a theme', async () => {
+      const server = new FakeServer();
+      const w = world(server);
+      const state = aaravState();
+      const aarav = await w.phone('aarav', { ...state, groups: { ...state.groups, [GOA]: { ...state.groups[GOA], theme: 'dining' } } });
+      const code = await aarav.api().shareGroup(GOA);
+      await w.settle();
+      expect(code).toMatch(/^[A-Z0-9]{8}$/);
+      expect(aarav.state().groups[GOA].theme).toBe('dining');
+    });
+  });
+
+  describe('on a server that has run supabase/add_group_theme.sql', () => {
+    it('sends a theme change to the other phone', async () => {
+      const server = new FakeServer({ themeColumn: true });
+      const { w, aarav, bhavna } = await sharedPair(undefined, server);
+      expect(serverTheme(server)).toBeNull();
+      setTheme(aarav, 'beach');
+      await w.settle();
+      expect(serverTheme(server)).toBe('beach');
+      expect(bhavna.state().groups[GOA].theme).toBe('beach');
+      setTheme(bhavna, 'music');
+      await w.settle();
+      expect(aarav.state().groups[GOA].theme).toBe('music');
+      expect(serverTheme(server)).toBe('music');
+    });
+
+    it('uploads the theme when the group is shared', async () => {
+      const server = new FakeServer({ themeColumn: true });
+      const w = world(server);
+      const state = aaravState();
+      const aarav = await w.phone('aarav', { ...state, groups: { ...state.groups, [GOA]: { ...state.groups[GOA], theme: 'dining' } } });
+      await aarav.api().shareGroup(GOA);
+      await w.settle();
+      expect(serverTheme(server)).toBe('dining');
+    });
+
+    it('does not wipe a theme chosen before the upgrade when the server row has none', async () => {
+      const server = new FakeServer();
+      const { w, aarav, bhavna } = await sharedPair(undefined, server);
+      setTheme(aarav, 'beach');
+      await w.settle();
+      server.addThemeColumn();
+      expect(serverTheme(server)).toBeNull();
+      bhavna.store.dispatch({ type: 'group/update', id: GOA, patch: { name: 'Goa Again' }, ...bhavna.stamp() });
+      await w.settle();
+      expect(aarav.state().groups[GOA].name).toBe('Goa Again');
+      expect(aarav.state().groups[GOA].theme).toBe('beach');
+      await aarav.api().syncNow();
+      await w.settle();
+      expect(aarav.state().groups[GOA].theme).toBe('beach');
+      expect(bhavna.state().groups[GOA].theme).toBeUndefined();
+    });
+
+    it('a rename without a theme keeps the server\'s theme', async () => {
+      const server = new FakeServer({ themeColumn: true });
+      const { w, aarav, bhavna } = await sharedPair(undefined, server);
+      setTheme(aarav, 'fitness');
+      await w.settle();
+      bhavna.store.dispatch({ type: 'group/update', id: GOA, patch: { name: 'Gym' }, ...bhavna.stamp() });
+      await w.settle();
+      expect(serverTheme(server)).toBe('fitness');
+      expect(aarav.state().groups[GOA].theme).toBe('fitness');
+    });
   });
 });

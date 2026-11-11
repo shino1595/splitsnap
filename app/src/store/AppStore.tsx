@@ -3,7 +3,7 @@
 // validation results, AsyncStorage loading and the debounced save.
 import * as React from 'react';
 import { ME_ID } from '../types';
-import type { AppState, CurrencyCode, Expense, ExpenseInput, Group, GroupType, ID, ISODate, Payment, PaymentInput, Person, Settings } from '../types';
+import type { AppState, CurrencyCode, Expense, ExpenseInput, Group, GroupThemeId, GroupType, ID, ISODate, Payment, PaymentInput, Person, Settings } from '../types';
 import { newId } from '../lib/ids';
 import { todayISO } from '../lib/dates';
 import { appReducer, buildExpense, validatePaymentInput } from './reducer';
@@ -24,7 +24,7 @@ export interface StoreActions {
   /** Puts a removed friend back on the friends list (no-op for current friends and unknown ids). */
   restoreFriend(id: ID): void;
   /** ME_ID is always added. */
-  createGroup(input: { name: string; type: GroupType; emoji: string; memberIds: ID[]; defaultCurrency: CurrencyCode; simplifyDebts: boolean }): Group;
+  createGroup(input: { name: string; type: GroupType; emoji: string; memberIds: ID[]; defaultCurrency: CurrencyCode; simplifyDebts: boolean; theme?: GroupThemeId }): Group;
   /** A memberIds patch never drops a member who still has a balance (use removeGroupMember for the reason). */
   updateGroup(id: ID, patch: Partial<Omit<Group, 'id' | 'createdAt'>>): void;
   addGroupMember(groupId: ID, personId: ID): void;

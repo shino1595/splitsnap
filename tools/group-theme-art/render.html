@@ -1,0 +1,58 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>group theme art</title></head>
+<body>
+<pre id="result">pending</pre>
+<script src="themes.js"></script>
+<script>
+// Renders every theme to two white-on-transparent PNG layers with a <canvas> and writes
+// {id: {lines, fills}} as JSON into #result. Fragment: scale=<n> (default 2, i.e. 488x192).
+var scale = Number((location.hash.match(/scale=([0-9.]+)/) || [])[1]) || 2;
+var W = Math.round(244 * scale), H = Math.round(96 * scale);
+
+function svgOf(inner, filled) {
+  var attrs = filled
+    ? 'fill="#fff" stroke="none"'
+    : 'fill="none" stroke="#fff" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"';
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 244 96" width="' + W + '" height="' + H + '"><g ' + attrs + '>' + inner + '</g></svg>';
+}
+
+function layerOf(art, filled) {
+  var re = /<(\w+)\b([^>]*?)\/>/g, out = '', m;
+  while ((m = re.exec(art))) {
+    var isFill = /class="tf"/.test(m[2]);
+    if (isFill === filled) out += m[0].replace(' class="tf"', '');
+  }
+  return out;
+}
+
+function render(svg) {
+  return new Promise(function (resolve, reject) {
+    var img = new Image();
+    img.onload = function () {
+      var c = document.createElement('canvas');
+      c.width = W; c.height = H;
+      c.getContext('2d').drawImage(img, 0, 0, W, H);
+      resolve(c.toDataURL('image/png'));
+    };
+    img.onerror = function () { reject(new Error('SVG failed to load')); };
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  });
+}
+
+(async function () {
+  var out = {};
+  try {
+    for (var id of Object.keys(THEME_ART)) {
+      out[id] = {
+        lines: await render(svgOf(layerOf(THEME_ART[id], false), false)),
+        fills: await render(svgOf(layerOf(THEME_ART[id], true), true)),
+      };
+    }
+    out.__size = [W, H];
+  } catch (e) {
+    out = { __error: String(e) };
+  }
+  document.getElementById('result').textContent = JSON.stringify(out);
+})();
+</script>
+</body></html>

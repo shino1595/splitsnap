@@ -68,3 +68,11 @@ it after every app change.
   cold start).
 - `ocr-live\` holds a separate live OCR.space check with its own Edge profile. These scripts do
   not use it.
+
+## build-group-theme-art.ps1 - group theme drawings
+
+Rebuilds `app\src\ui\groupThemeArt.ts`. The SVG source of the ten drawings is
+`tools\group-theme-art\themes.js` (viewBox 244 x 96; elements with class `tf` are the filled
+shapes); `tools\group-theme-art\render.html` draws each theme onto a `<canvas>` as white strokes
+(`lines`) and white fills (`fills`) and returns the PNG data URIs. `-Scale 1.5` renders smaller
+images if the file gets too big (at the default 2, 488 x 192 pixels, it is about 170 KB).

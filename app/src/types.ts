@@ -31,6 +31,19 @@ export interface Person {
 
 export type GroupType = 'trip' | 'home' | 'couple' | 'other';
 
+/** Look of a group's tile and header; see lib/groupThemes.ts. */
+export type GroupThemeId =
+  | 'default'
+  | 'beach'
+  | 'mountains'
+  | 'home'
+  | 'office'
+  | 'friends'
+  | 'fitness'
+  | 'groceries'
+  | 'music'
+  | 'dining';
+
 export interface Group {
   id: ID;
   name: string;
@@ -44,6 +57,8 @@ export interface Group {
   defaultCurrency: CurrencyCode;
   createdAt: ISODateTime;
   archived?: boolean;
+  /** Missing or unknown means the default theme. Shared groups sync it when the server has the column. */
+  theme?: GroupThemeId;
 }
 
 export type CategoryId =
