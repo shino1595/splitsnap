@@ -50,6 +50,8 @@ export interface StoreActions {
   updateSettings(patch: Partial<Settings>): void;
   /** Demo data again; your profile, the OCR key and engine are kept. */
   resetToDemo(): void;
+  /** Removes the sample groups and friends; a demo group someone shared stays. */
+  removeDemoData(): void;
   /** Empty state with just ME_ID (your profile and settings are kept). */
   clearAllData(): void;
   /** Changes from a shared group's server (sync engine only); logs no activity of its own. */
@@ -142,7 +144,7 @@ export function AppStoreProvider(props: { children: React.ReactNode }): React.JS
     }
   }, [dispatch]);
 
-  // Saved state, else demo data. The sync state is loaded first, so the recurring check below
+  // Saved state, else an empty state (the Groups tab offers the demo). The sync state is loaded first, so the recurring check below
   // knows which groups are shared on this phone. Data that can't be read is never replaced:
   // nothing is dispatched and the store stays not ready, so nothing is saved and sync stays off.
   const load = React.useCallback(
@@ -159,7 +161,7 @@ export function AppStoreProvider(props: { children: React.ReactNode }): React.JS
         }
         problemRef.current = null;
         setProblem(null);
-        dispatch({ type: 'state/replace', state: outcome.kind === 'ok' ? outcome.state : demoOrEmpty(todayISO()) });
+        dispatch({ type: 'state/replace', state: outcome.kind === 'ok' ? outcome.state : createEmptyState() });
         readyRef.current = true;
         setReady(true);
       });
@@ -348,6 +350,10 @@ export function AppStoreProvider(props: { children: React.ReactNode }): React.JS
         processDueRecurring();
       },
 
+      removeDemoData() {
+        dispatch({ type: 'demo/remove', keepGroupIds: sharedGroupIdsNow() });
+      },
+
       clearAllData() {
         dispatch({ type: 'state/clear', at: nowISO() });
       },
@@ -402,7 +408,7 @@ export function useAppState(): AppState {
   return state;
 }
 
-/** False until the saved state (or the demo data) has been loaded. */
+/** False until the saved state (or the empty start) has been loaded. */
 export function useStoreReady(): boolean {
   return React.useContext(ReadyContext);
 }

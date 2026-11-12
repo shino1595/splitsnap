@@ -32,6 +32,7 @@ import { advance, dueDates } from '../lib/recurrence';
 import { isGroupThemeId } from '../lib/groupThemes';
 import { canDeleteGroup, canRemoveFriend, canRemoveGroupMember } from './selectors';
 import { blankState } from './stateShape';
+import { removeDemoData } from './seed';
 import * as text from './activityText';
 import type { ImportPlan } from '../lib/splitwiseImport';
 import type { LocalBatch } from '../sync/types';
@@ -70,6 +71,8 @@ export type AppAction =
   | { type: 'state/replace'; state: AppState }
   /** A restored backup. Separate from state/replace, which makes the sync engine stop sharing. */
   | { type: 'state/restore'; state: AppState }
+  /** Drop the sample groups and friends; demo groups in keepGroupIds (shared with others) stay. */
+  | { type: 'demo/remove'; keepGroupIds: ID[] }
   /** Wipe everything except the user's own profile and settings. */
   | { type: 'state/clear'; at: ISODateTime }
   | ({ type: 'friend/add'; id: ID; input: FriendInput } & Stamp)
@@ -512,6 +515,9 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     case 'state/restore':
     case 'state/replace':
       return action.state;
+
+    case 'demo/remove':
+      return removeDemoData(state, action.keepGroupIds);
 
     case 'state/clear':
       return blankState(action.at, state.people[ME_ID], state.settings);

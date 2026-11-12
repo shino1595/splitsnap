@@ -60,8 +60,10 @@ If the phone shows an error screen, tap **View error log** to see the details.
   group's screen. In a shared group everyone sees the same theme, once the server has been
   upgraded (see section 5).
 - **Add a group** (the row under your groups) opens a menu: **Start a new group**, **Join a
-  group** with a code a friend shared, or **Import an existing group**. With no groups yet, all
-  three are buttons on the Groups tab.
+  group** with a code a friend shared, or **Import an existing group**. A new install starts empty
+  and the Groups tab offers three choices: **Join a group**, **Start a new group** or **Try the demo**
+  (with **Import an existing group** below them). While the sample groups are there, a note at the top
+  has **Remove the demo**, which removes them and the sample friends and keeps everything you added.
 - **Import an existing group** (Groups tab or Settings) reads Splitwise exports: choose a group's Splitwise
   "Export as spreadsheet" CSV (or paste its text). Pick which column is you, name the group, and
   bring over every expense and payment, or only the final balances. The preview checks the result
@@ -95,7 +97,7 @@ If the phone shows an error screen, tap **View error log** to see the details.
 - **Account:** your name and colour, default currency, **Appearance** (System / Light / Dark mode), and your totals.
 - **Backup & restore** (Settings): save everything to one file and bring it back later.
 - **Settings:** bill scanning key and engine, defaults, export everything as CSV, import a
-  Splitwise group, reset the demo data, or clear all data.
+  Splitwise group, load the demo data, or clear all data.
 
 ---
 
@@ -208,14 +210,14 @@ payments and settings (not your OCR key; a bill photo is not in the file, only t
 replacing what is on the phone. Shared groups are not restored from the file: a group shared on
 this phone stays as it is, and one that was shared when the backup was made comes back by joining
 it again with its code (or as a plain copy, if the shared group no longer exists). If saved data
-can't be read at start-up, SplitSnap shows a recovery screen instead of loading the demo: it
+can't be read at start-up, SplitSnap shows a recovery screen instead of starting empty: it
 changes nothing until you choose to restore a backup or start empty (the old data is then set
 aside on the phone, not deleted). If the app itself hits an error it shows a problem screen with
 details to copy and send, and a button to share your saved data.
 
 To start over, use **Account → Settings**:
-- **Reset demo data** loads the sample groups and friends again and keeps your name and key.
-- **Clear all data** gives you an empty app.
+- **Reset demo data** loads the sample groups and friends (replacing your friends list) and keeps your name and key.
+- **Clear all data** gives you an empty app, with the three start choices on the Groups tab.
 - Both stop syncing your shared groups on this phone. Nothing is deleted for the other members.
 
 ---
@@ -226,7 +228,8 @@ To start over, use **Account → Settings**:
 - Only **shared groups** sync between phones. Everything else stays on your phone and nobody else
   sees it (section 5).
 - **Friends get the app through Expo Go only.** There is no App Store or Play Store version. Each
-  friend installs Expo Go and makes a free Expo account. You invite that account on expo.dev to
+  friend installs Expo Go and makes a free Expo account (the invite lists the steps: install, log in
+  to Expo Go first, open the link, join with the code). You invite that account on expo.dev to
   the organization **shinozaki1595's team** as a **Viewer**. The friend signs in to Expo Go once,
   then opens the link in the group invite. Expo Go won't open SplitSnap when it is signed out or
   signed in to an account outside the organization (on Android it only says "Failed to download

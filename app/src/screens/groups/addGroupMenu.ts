@@ -60,3 +60,49 @@ export function addGroupRowLabel(canJoin: boolean): string {
   const list = titles.length > 1 ? `${titles.slice(0, -1).join(', ')} or ${titles[titles.length - 1]}` : titles.join('');
   return `${ADD_GROUP_TITLE}: ${list}`;
 }
+
+export type FirstRunChoice = 'join' | 'new' | 'demo';
+
+export interface FirstRunOption {
+  choice: FirstRunChoice;
+  title: string;
+  subtitle: string;
+  icon: string;
+  testID: string;
+}
+
+const FIRST_RUN_OPTIONS: FirstRunOption[] = [
+  {
+    choice: 'join',
+    title: JOIN_GROUP_TITLE,
+    subtitle: 'Enter the code a friend sent you',
+    icon: 'enter-outline',
+    testID: 'groups-join',
+  },
+  {
+    choice: 'new',
+    title: 'Start a new group',
+    subtitle: 'For a trip, your home or anything you share',
+    icon: 'people-outline',
+    testID: 'groups-start',
+  },
+  {
+    choice: 'demo',
+    title: 'Try the demo',
+    subtitle: 'Look around with sample groups and friends. You can remove them later.',
+    icon: 'sparkles-outline',
+    testID: 'groups-demo',
+  },
+];
+
+/** Join (only when canJoin), Start a new group, Try the demo: in that order. */
+export function firstRunOptions(canJoin: boolean): FirstRunOption[] {
+  return FIRST_RUN_OPTIONS.filter((o) => canJoin || o.choice !== 'join').map((o) => ({ ...o }));
+}
+
+/** The empty Groups tab's heading: a welcome on a brand-new install, a plain note after Clear all data. */
+export function firstRunHeading(pristine: boolean): { title: string; message: string } {
+  return pristine
+    ? { title: 'Welcome to SplitSnap', message: 'Split bills with friends, item by item. How do you want to start?' }
+    : { title: 'No groups yet', message: 'Join a group, start one, or look around with the demo.' };
+}

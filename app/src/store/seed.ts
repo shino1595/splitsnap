@@ -3,7 +3,7 @@
 // computed by computeOwed, payers and splits must add up). Dates are relative to
 // `today` so the demo always looks recent.
 import { ME_ID } from '../types';
-import type { AppState, ExpenseInput, ID, ISODate, ISODateTime, ItemizedBill, MoneyShare, PaymentInput } from '../types';
+import type { AppState, Expense, ExpenseInput, Group, ID, ISODate, ISODateTime, ItemizedBill, MoneyShare, Payment, PaymentInput, Person } from '../types';
 import { addDays, addMonths, parseISODate } from '../lib/dates';
 import { advance } from '../lib/recurrence';
 import { appReducer, buildExpense } from './reducer';
@@ -289,4 +289,105 @@ export function createDemoState(today: ISODate): AppState {
     .filter((a) => a.type !== 'friend_added')
     .sort((x, y) => (x.at < y.at ? 1 : x.at > y.at ? -1 : 0));
   return { ...state, activity };
+}
+
+const DEMO_PERSON_IDS: ID[] = [DEMO_IDS.aarav, DEMO_IDS.bhavna, DEMO_IDS.chirag, DEMO_IDS.diya, DEMO_IDS.ishaan, DEMO_IDS.meera];
+const DEMO_GROUP_IDS: ID[] = [DEMO_IDS.goa, DEMO_IDS.flat];
+
+/** True while a demo group (Goa Trip or Flat 302) is still in the state. */
+export function hasDemoData(state: AppState): boolean {
+  return DEMO_GROUP_IDS.some((id) => Object.prototype.hasOwnProperty.call(state.groups, id));
+}
+
+/** The demo groups removeDemoData would delete: those still in the state and not in keepGroupIds (shared with others). */
+export function removableDemoGroups(state: AppState, keepGroupIds: ID[]): Group[] {
+  return DEMO_GROUP_IDS.filter((id) => Object.prototype.hasOwnProperty.call(state.groups, id) && !keepGroupIds.includes(id)).map(
+    (id) => state.groups[id],
+  );
+}
+
+/** Every person an expense names: payers, owed, split, comments and who created it. */
+function expensePeople(e: Expense): ID[] {
+  const ids: ID[] = [e.createdBy];
+  for (const p of e.payers) ids.push(p.personId);
+  for (const p of e.owed) ids.push(p.personId);
+  for (const c of e.comments) ids.push(c.authorId);
+  const split = e.split;
+  if (split.method === 'equal') ids.push(...split.participantIds);
+  else if (split.method === 'exact') ids.push(...Object.keys(split.amounts));
+  else if (split.method === 'percent') ids.push(...Object.keys(split.percents));
+  else if (split.method === 'shares') ids.push(...Object.keys(split.shares));
+  else if (split.method === 'adjustment') ids.push(...split.participantIds, ...Object.keys(split.adjustments));
+  else for (const item of split.bill.items) ids.push(...Object.keys(item.shares));
+  return ids;
+}
+
+/** True when the list names at least one demo person and nobody else but you. */
+function onlyYouAndDemo(ids: ID[]): boolean {
+  let demo = false;
+  for (const id of ids) {
+    if (id === ME_ID) continue;
+    if (!DEMO_PERSON_IDS.includes(id)) return false;
+    demo = true;
+  }
+  return demo;
+}
+
+/**
+ * The state without the demo: demo groups (except ids in keepGroupIds) with their expenses and payments,
+ * non-group expenses and payments that involve nobody but you and demo people, and demo people nothing
+ * else refers to. Your own groups, friends and entries stay. Activity entries about removed groups,
+ * expenses, payments or people go too.
+ */
+export function removeDemoData(state: AppState, keepGroupIds: ID[]): AppState {
+  const has = (record: object, id: ID): boolean => Object.prototype.hasOwnProperty.call(record, id);
+  const goneGroups = removableDemoGroups(state, keepGroupIds).map((g) => g.id);
+
+  const expenses: Record<ID, Expense> = {};
+  const goneExpenses: ID[] = [];
+  for (const e of Object.values(state.expenses)) {
+    const remove = e.groupId === null ? onlyYouAndDemo(expensePeople(e)) : goneGroups.includes(e.groupId);
+    if (remove) goneExpenses.push(e.id);
+    else expenses[e.id] = e;
+  }
+  const payments: Record<ID, Payment> = {};
+  const gonePayments: ID[] = [];
+  for (const p of Object.values(state.payments)) {
+    const remove = p.groupId === null ? onlyYouAndDemo([p.fromId, p.toId]) : goneGroups.includes(p.groupId);
+    if (remove) gonePayments.push(p.id);
+    else payments[p.id] = p;
+  }
+  const groups: Record<ID, Group> = {};
+  for (const g of Object.values(state.groups)) if (!goneGroups.includes(g.id)) groups[g.id] = g;
+
+  const used = new Set<ID>();
+  for (const g of Object.values(groups)) for (const id of g.memberIds) used.add(id);
+  for (const e of Object.values(expenses)) for (const id of expensePeople(e)) used.add(id);
+  for (const p of Object.values(payments)) {
+    used.add(p.fromId);
+    used.add(p.toId);
+  }
+  const gonePeople = DEMO_PERSON_IDS.filter((id) => id !== ME_ID && has(state.people, id) && !used.has(id));
+
+  if (!goneGroups.length && !goneExpenses.length && !gonePayments.length && !gonePeople.length) return state;
+
+  const people: Record<ID, Person> = {};
+  for (const p of Object.values(state.people)) if (!gonePeople.includes(p.id)) people[p.id] = p;
+  const activity = state.activity.filter(
+    (a) =>
+      !(a.groupId && goneGroups.includes(a.groupId)) &&
+      !(a.expenseId && goneExpenses.includes(a.expenseId)) &&
+      !(a.paymentId && gonePayments.includes(a.paymentId)) &&
+      !(a.personId && gonePeople.includes(a.personId)) &&
+      !gonePeople.includes(a.actorId),
+  );
+  return {
+    ...state,
+    people,
+    friendIds: state.friendIds.filter((id) => !gonePeople.includes(id)),
+    groups,
+    expenses,
+    payments,
+    activity,
+  };
 }

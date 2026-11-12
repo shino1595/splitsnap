@@ -6,6 +6,8 @@ import {
   addGroupHint,
   addGroupOptions,
   addGroupRowLabel,
+  firstRunHeading,
+  firstRunOptions,
 } from '../../app/src/screens/groups/addGroupMenu';
 
 describe('add a group menu', () => {
@@ -55,5 +57,44 @@ describe('add a group menu', () => {
     const first = addGroupOptions(true);
     first.pop();
     expect(addGroupOptions(true)).toHaveLength(3);
+  });
+});
+
+describe('first run choices', () => {
+  it('offers join, new and demo in that order', () => {
+    expect(firstRunOptions(true).map((o) => o.choice)).toEqual(['join', 'new', 'demo']);
+    expect(firstRunOptions(true).map((o) => o.testID)).toEqual(['groups-join', 'groups-start', 'groups-demo']);
+  });
+
+  it('leaves out join without a shared-groups server', () => {
+    expect(firstRunOptions(false).map((o) => o.choice)).toEqual(['new', 'demo']);
+  });
+
+  it('uses the shared join title and the agreed texts and icons', () => {
+    const options = firstRunOptions(true);
+    expect(options[0].title).toBe(JOIN_GROUP_TITLE);
+    expect(options[0].subtitle).toBe('Enter the code a friend sent you');
+    expect(options[0].icon).toBe('enter-outline');
+    expect(options[1].title).toBe('Start a new group');
+    expect(options[1].icon).toBe('people-outline');
+    expect(options[2].title).toBe('Try the demo');
+    expect(options[2].subtitle).toBe('Look around with sample groups and friends. You can remove them later.');
+    expect(options[2].icon).toBe('sparkles-outline');
+  });
+
+  it('returns copies, so a caller cannot change the list', () => {
+    firstRunOptions(true)[0].title = 'x';
+    expect(firstRunOptions(true)[0].title).toBe(JOIN_GROUP_TITLE);
+  });
+
+  it('welcomes a brand-new install and is plainer after the data was cleared', () => {
+    expect(firstRunHeading(true)).toEqual({
+      title: 'Welcome to SplitSnap',
+      message: 'Split bills with friends, item by item. How do you want to start?',
+    });
+    expect(firstRunHeading(false)).toEqual({
+      title: 'No groups yet',
+      message: 'Join a group, start one, or look around with the demo.',
+    });
   });
 });

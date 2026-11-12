@@ -400,7 +400,7 @@ export function receiptToBill(receipt: ParsedReceipt, participantIds: ID[]): Ite
 ## 5. `src/store` — state
 
 Single React context with `useReducer`; persisted to AsyncStorage key `splitsnap/state/v1`
-(debounced 300 ms); first launch (or `resetToDemo`) loads `seed.ts`. Recurring expenses are
+(debounced 300 ms); a first launch starts empty (`createEmptyState`) and the Groups tab offers Join, Start a new group and Try the demo (`resetToDemo` loads `seed.ts`). Recurring expenses are
 materialised on load (`processRecurring`).
 
 ### store/AppStore.tsx
@@ -427,6 +427,7 @@ export interface StoreActions {
   deletePayment(id: ID): void;                                      // soft delete
   updateSettings(patch: Partial<Settings>): void;
   resetToDemo(): void;
+  removeDemoData(): void;                                           // reducer action 'demo/remove', keepGroupIds = sharedGroupIdsNow(): a demo group someone shared stays
   clearAllData(): void;                                             // empty state with just ME_ID
 }
 export function useActions(): StoreActions;
@@ -485,6 +486,10 @@ participants; itemized bills keep their items but drop removed people from share
 ```ts
 export function createDemoState(today: ISODate): AppState;
 export function createEmptyState(): AppState;
+/** True while a demo group (Goa Trip or Flat 302) is still in the state. */
+export function hasDemoData(state: AppState): boolean;
+/** Without the demo groups (except keepGroupIds) and their entries, non-group entries between you and demo people only, and demo people nothing else uses; the same object when there is nothing to remove. */
+export function removeDemoData(state: AppState, keepGroupIds: ID[]): AppState;
 ```
 Demo data: you ('You', ME_ID) + friends Aarav, Bhavna, Chirag, Diya (A, B, C, D — matches the
 itemized example), Ishaan, Meera. Groups: 'Goa Trip' (trip, ✈️/🏖️, you+A+B+C+D, INR, simplify on,
@@ -506,7 +511,7 @@ export async function readRawSavedState(): Promise<string | null>;  // the saved
 export async function keepUnreadableCopy(raw: string, at: string): Promise<string>;  // copy to 'splitsnap/state/kept/<time>'; rejects if the write fails
 ```
 
-**Safe start-up.** `AppStore` loads with `loadSavedState()`. `ok` and `none` (demo data) go on as before. `damaged` and `unreadable` dispatch nothing and leave the store not ready, so nothing is saved over the data and sync does not start; `useStartupProblem()` returns the problem and `App.tsx` shows `RecoveryScreen`. `useStartupRecovery()` gives `retry()` (read storage again) and `startFrom(state?)` (damaged data only: `keepUnreadableCopy` first, then start from `state` or an empty state; rejects without changing anything if the copy can't be written).
+**Safe start-up.** `AppStore` loads with `loadSavedState()`. `ok` and `none` (an empty state) go on as before. `damaged` and `unreadable` dispatch nothing and leave the store not ready, so nothing is saved over the data and sync does not start; `useStartupProblem()` returns the problem and `App.tsx` shows `RecoveryScreen`. `useStartupRecovery()` gives `retry()` (read storage again) and `startFrom(state?)` (damaged data only: `keepUnreadableCopy` first, then start from `state` or an empty state; rejects without changing anything if the copy can't be written).
 
 **Upgrade step.** `stateShape.ts` holds `MIGRATIONS[n]`, which turns a saved state of schema n into n + 1, and `readSavedState` / `readSavedValue`, which run them from the saved `schemaVersion` up to `SCHEMA_VERSION`. A newer schema is `damaged / newer-version` and is never overwritten. To change the persisted shape: bump `SCHEMA_VERSION` in `types.ts`, add `MIGRATIONS[<old version>] = (old) => ({ ...old, ... })`, update `isAppState` and add a test in `tests/store/savedState.test.ts`. `loadSavedState` copies the old text to `splitsnap/state/before-upgrade-v<n>` before the upgraded state is used.
 
@@ -599,7 +604,7 @@ dynamic.
 
 | Route | File | Purpose |
 |---|---|---|
-| Tabs › Groups | `screens/groups/GroupsScreen.tsx` | Overall balance card (`overallSummary`), list of groups, each a `GroupThemeTile` (emoji, name in the title font, my balance, avatars and people count; the Default theme uses the default drawing), "Non-group expenses" row, "Add a group" row (hint "New · Join · Import"; Join only when sync is configured) that opens `components/AddGroupSheet.tsx` (a `Sheet` with Start a new group → GroupEdit, Join a group → JoinGroup, Import an existing group → ImportSplitwise; the screen opens from `Sheet.onClosed`, after the sheet is gone, because iOS cannot present a modal while another is fading out). Option texts and the hint live in `addGroupMenu.ts` (also used by Settings and the invite message). With no groups at all: EmptyState "Start a new group" plus Join a group and Import an existing group buttons. Search icon in header → Search |
+| Tabs › Groups | `screens/groups/GroupsScreen.tsx` | Overall balance card (`overallSummary`), list of groups, each a `GroupThemeTile` (emoji, name in the title font, my balance, avatars and people count; the Default theme uses the default drawing), "Non-group expenses" row, "Add a group" row (hint "New · Join · Import"; Join only when sync is configured) that opens `components/AddGroupSheet.tsx` (a `Sheet` with Start a new group → GroupEdit, Join a group → JoinGroup, Import an existing group → ImportSplitwise; the screen opens from `Sheet.onClosed`, after the sheet is gone, because iOS cannot present a modal while another is fading out). Option texts and the hint live in `addGroupMenu.ts` (also used by Settings and the invite message). With no groups at all (a new install or Clear all data): a welcome heading (`firstRunHeading`) and three full-width cards from `firstRunOptions` (Join a group when sync is configured, Start a new group, Try the demo, which confirms first when friends exist and calls `resetToDemo`) plus the Import an existing group button. While `hasDemoData`, an info Banner above the balance card offers "Remove the demo" (confirm, then `removeDemoData()`). Search icon in header → Search |
 | Tabs › Friends | `screens/friends/FriendsScreen.tsx` | Overall balance, filter chips (All / Owe you / You owe / Settled), friends with `friendBalance`, "Add friend" |
 | Tabs › Activity | `screens/activity/ActivityScreen.tsx` | Feed grouped by day, icon per type, amount impact for me, tap → ExpenseDetail / PaymentDetail / GroupDetail |
 | Tabs › Account | `screens/account/AccountScreen.tsx` | Your name/email (edit), default currency, link to Settings, stats (groups, friends, expenses), app info |

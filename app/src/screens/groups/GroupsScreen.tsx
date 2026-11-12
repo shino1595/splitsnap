@@ -3,16 +3,17 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ME_ID } from '../../types';
 import type { CurrencyAmounts } from '../../types';
 import type { TabScreenProps } from '../../navigation/types';
-import { useAppState } from '../../store/AppStore';
+import { useActions, useAppState } from '../../store/AppStore';
+import { removableDemoGroups } from '../../store/seed';
 import { nonGroupDebts, nonGroupTimeline, overallSummary } from '../../store/selectors';
 import { isSettled, summarizeFor } from '../../lib/balances';
 import type { BalanceSummary } from '../../lib/balances';
 import { formatCurrencyAmounts } from '../../lib/money';
 import { useSync } from '../../sync/SyncProvider';
 import { colors, radius, spacing, themed } from '../../theme';
-import { AppText, AvatarStack, Button, Card, EmptyState, GoldWash, GroupThemeTile, Icon, IconButton, Screen, SectionHeader, wrapFriendlyAmounts } from '../../ui';
-import { ADD_GROUP_TITLE, IMPORT_GROUP_TITLE, JOIN_GROUP_TITLE, addGroupHint, addGroupRowLabel } from './addGroupMenu';
-import type { AddGroupChoice } from './addGroupMenu';
+import { AppText, AvatarStack, Banner, Button, Card, GoldWash, GroupThemeTile, Icon, IconButton, Screen, SectionHeader, confirmAsync, wrapFriendlyAmounts } from '../../ui';
+import { ADD_GROUP_TITLE, IMPORT_GROUP_TITLE, addGroupHint, addGroupRowLabel, firstRunHeading, firstRunOptions } from './addGroupMenu';
+import type { AddGroupChoice, FirstRunChoice } from './addGroupMenu';
 import { AddGroupSheet } from './components/AddGroupSheet';
 import { BalanceHeadline, balanceSentence } from './components/BalanceBits';
 import { IconTile } from './components/GroupAvatar';
@@ -136,6 +137,7 @@ function AddGroupRow({ canJoin, onPress }: { canJoin: boolean; onPress: () => vo
 
 export default function GroupsScreen({ navigation }: Props) {
   const state = useAppState();
+  const actions = useActions();
   const sync = useSync();
   const [showNonGroup, setShowNonGroup] = React.useState(false);
   const [showArchived, setShowArchived] = React.useState(false);
@@ -176,6 +178,21 @@ export default function GroupsScreen({ navigation }: Props) {
   // Join is hidden (the app looks as before) when this build has no shared-groups server.
   const canJoin = sync.status !== 'off';
 
+  // Demo groups that can go; one that was shared stays, because removing it would delete it for the others.
+  const demoGroups = React.useMemo(
+    () => removableDemoGroups(state, Object.keys(state.groups).filter((id) => sync.shared(id) !== null)),
+    [state, sync],
+  );
+  const removeDemo = async () => {
+    const one = demoGroups.length === 1;
+    const names = demoGroups.map((g) => g.name).join(' and ');
+    const ok = await confirmAsync(
+      'Remove the demo?',
+      `${names} ${one ? 'is' : 'are'} removed with every expense and payment in ${one ? 'it' : 'them'}, including any you added there, along with the sample friends. Your other groups stay.`,
+      { confirmText: 'Remove', destructive: true },
+    );
+    if (ok) actions.removeDemoData();
+  };
   // Rendered at the same place in both layouts, so a synced change that empties the list while
   // the menu is open can't unmount it with addMenuOpen still true (it would pop up again later).
   const addSheet = (
@@ -183,31 +200,54 @@ export default function GroupsScreen({ navigation }: Props) {
   );
 
   if (rows.current.length === 0 && rows.archived.length === 0 && nonGroup.entries.length === 0) {
-    // Reached after Settings > Clear all data (a fresh install starts with the demo groups).
-    // With nothing to list, all three actions stay in view instead of behind the menu.
+    // A new install, or Settings > Clear all data: three ways to start, with Import below them.
+    // Not the activity list: changing the appearance or your name logs an entry before anything is added.
+    const pristine =
+      state.friendIds.length === 0 && Object.keys(state.expenses).length === 0 && Object.keys(state.payments).length === 0;
+    const heading = firstRunHeading(pristine);
+    const startWith = async (choice: FirstRunChoice) => {
+      if (choice === 'join') joinGroup();
+      else if (choice === 'new') newGroup();
+      else {
+        if (
+          state.friendIds.length > 0 &&
+          !(await confirmAsync('Load the demo?', 'Your friends list is replaced by the sample groups and friends. Your profile and settings stay.', {
+            confirmText: 'Load demo',
+          }))
+        ) {
+          return;
+        }
+        actions.resetToDemo();
+      }
+    };
     return (
       <>
         <Screen contentStyle={styles.emptyScreen}>
-          <EmptyState
-            icon="people-outline"
-            title="No groups yet"
-            message="Create a group for a trip, your home or anything you share, then add expenses and scan bills to split them."
-            actionTitle="Start a new group"
-            onAction={newGroup}
-            style={styles.emptyState}
-          />
-          {canJoin ? (
-            <Button
-              title={JOIN_GROUP_TITLE}
-              icon="enter-outline"
-              variant="ghost"
-              onPress={joinGroup}
-              fullWidth
-              style={styles.emptyAction}
-              accessibilityLabel="Join a shared group with a code"
-              testID="groups-join"
-            />
-          ) : null}
+          <View style={styles.welcome}>
+            <View style={styles.welcomeIcon}>
+              <Icon name="people-outline" size={34} color={colors.primary} />
+            </View>
+            <AppText variant="title" align="center">
+              {heading.title}
+            </AppText>
+            <AppText color={colors.textMuted} align="center" style={styles.welcomeMessage}>
+              {heading.message}
+            </AppText>
+          </View>
+          <View style={styles.startOptions}>
+            {firstRunOptions(canJoin).map((o) => (
+              <Card key={o.choice} onPress={() => void startWith(o.choice)} accessibilityLabel={`${o.title}. ${o.subtitle}`} testID={o.testID}>
+                <View style={styles.startRow}>
+                  <IconTile icon={o.icon} size={44} color={colors.primaryDark} background={colors.primarySoft} />
+                  <View style={styles.rowMiddle}>
+                    <AppText weight="semibold">{o.title}</AppText>
+                    <AppText variant="caption">{o.subtitle}</AppText>
+                  </View>
+                  <Icon name="chevron-forward" size={18} color={colors.textFaint} />
+                </View>
+              </Card>
+            ))}
+          </View>
           <Button
             title={IMPORT_GROUP_TITLE}
             icon="download-outline"
@@ -227,6 +267,15 @@ export default function GroupsScreen({ navigation }: Props) {
   return (
     <>
       <Screen contentStyle={styles.bottomRoom}>
+        {demoGroups.length > 0 ? (
+          <Banner
+            tone="info"
+            message="These are sample groups to try things out."
+            actionTitle="Remove the demo"
+            onAction={removeDemo}
+            style={styles.demoBanner}
+          />
+        ) : null}
         <OverallCard summary={summary} />
 
         <SectionHeader title="Groups" />
@@ -356,10 +405,23 @@ const styles = themed((colors) => StyleSheet.create({
   // the title then wraps instead of pushing the chevron out of the row.
   addTitle: { flexShrink: 1 },
   addHint: { flex: 1, minWidth: 0, textAlign: 'right' },
-  // The empty tab centres the message and its three actions as one block.
+  // The empty tab centres the welcome, the three choices and Import as one block.
   emptyScreen: { flexGrow: 1, justifyContent: 'center' },
-  emptyState: { flexGrow: 0, paddingBottom: spacing.md },
-  emptyAction: { marginTop: spacing.xs },
+  welcome: { alignItems: 'center', paddingBottom: spacing.xl, paddingHorizontal: spacing.md },
+  welcomeIcon: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.lg,
+  },
+  welcomeMessage: { marginTop: spacing.sm, maxWidth: 320 },
+  startOptions: { gap: spacing.md },
+  startRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  emptyAction: { marginTop: spacing.md },
+  demoBanner: { marginBottom: spacing.md },
   section: { marginTop: spacing.lg },
   archivedToggle: { alignSelf: 'center' },
 }));
