@@ -9,6 +9,7 @@ drop function if exists public.preview_group(text);
 drop function if exists public.join_group(text, text, text);
 drop function if exists public.leave_group(text);
 drop function if exists public.reset_join_code(text, boolean);
+drop function if exists public.keep_alive();
 
 -- Dropping the tables also removes them from the supabase_realtime publication.
 drop table if exists public.activity, public.comments, public.payments, public.expenses,

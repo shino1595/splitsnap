@@ -534,6 +534,16 @@ grant execute on function public.share_group(jsonb, jsonb, jsonb, jsonb, jsonb, 
   public.reset_join_code(text, boolean)
   to authenticated;
 
+-- For the scheduled GitHub job (.github/workflows/keep-alive.yml), which is not signed in: a real
+-- table read that returns only 'ok', so the free project shows activity and is less likely to be
+-- paused. The only function a caller who is not signed in can run.
+create function public.keep_alive() returns text
+language sql stable security definer set search_path = '' as $$
+  select 'ok'::text from (select count(*) from public.groups) as g;
+$$;
+revoke all on function public.keep_alive() from public;
+grant execute on function public.keep_alive() to anon, authenticated;
+
 -- ---------------------------------------------------------------------------------------------
 -- Live updates (Supabase Realtime "Postgres Changes"; row security decides who receives what)
 -- ---------------------------------------------------------------------------------------------

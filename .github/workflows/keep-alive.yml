@@ -1,0 +1,63 @@
+# Supabase pauses a free project that shows too little database activity over 7 days, and shared
+# groups then stop syncing until the owner restores it. This job makes one small read three times
+# a day. Supabase does not publish what counts as activity (its docs say "a few user requests to
+# the database each day" is typically enough), so this lowers the risk; it is not a guarantee.
+# When the project does not answer, the job fails and GitHub emails the repo owner.
+#
+# The read is public.keep_alive() (supabase/add_keep_alive.sql), which counts the groups table and
+# returns 'ok'. Until that file has been run, the job falls back to a plain request and warns.
+# The URL and key come from app/src/sync/config.ts: both are public by design.
+#
+# GitHub switches scheduled workflows off after 60 days without a commit to the repo (it emails
+# first). Actions → Keep Supabase awake → Enable workflow turns it back on.
+name: Keep Supabase awake
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 3,11,19 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: app/src/sync/config.ts
+          sparse-checkout-cone-mode: false
+
+      - name: Read from the shared-groups database
+        run: |
+          url=$(sed -n "s/^export const SUPABASE_URL = '\(.*\)';.*/\1/p" app/src/sync/config.ts)
+          key=$(sed -n "s/^export const SUPABASE_PUBLISHABLE_KEY = '\(.*\)';.*/\1/p" app/src/sync/config.ts)
+          if [ -z "$url" ] || [ -z "$key" ]; then
+            echo "::notice::Shared groups are not configured (app/src/sync/config.ts is empty). Nothing to keep awake."
+            exit 0
+          fi
+
+          code=$(curl -sS -o body.txt -w '%{http_code}' --max-time 30 -X POST "$url/rest/v1/rpc/keep_alive" \
+            -H "apikey: $key" -H "Authorization: Bearer $key" -H 'Content-Type: application/json' -d '{}' || echo 000)
+          if [ "$code" = "200" ]; then
+            echo "keep_alive answered: $(cat body.txt)"
+            exit 0
+          fi
+
+          if [ "$code" = "404" ]; then
+            # The function is not installed yet: a plain request still reaches the database.
+            code=$(curl -sS -o body.txt -w '%{http_code}' --max-time 30 "$url/rest/v1/groups?select=id&limit=1" \
+              -H "apikey: $key" -H "Authorization: Bearer $key" || echo 000)
+            case "$code" in
+              200|401|403)
+                echo "::warning::The database answered (HTTP $code), but public.keep_alive() is missing. Run supabase/add_keep_alive.sql in the Supabase SQL Editor so this job reads a real table."
+                exit 0
+                ;;
+            esac
+          fi
+
+          echo "::error::The Supabase project did not answer as expected (HTTP $code). It may be paused: open the Supabase dashboard and restore it."
+          head -c 500 body.txt || true
+          exit 1
