@@ -26,8 +26,9 @@ It is a prototype. It runs in **Expo Snack** (Expo's free online editor) and in 
 ### On an iPhone (published app: your data is kept)
 The App Store's Expo Go now runs **SDK 58**, which Snack can't build, so the iPhone uses the
 **published** app instead. Every push to GitHub publishes it automatically through Expo's free
-update service (`.github/workflows/publish.yml`). Your data stays on the phone across restarts
-and new versions.
+update service (`.github/workflows/publish.yml`), after the unit tests and the type check have
+passed on GitHub (`.github/workflows/check.yml`); if either fails, nothing is published. Your
+data stays on the phone across restarts and new versions.
 1. In **Expo Go**, sign in to your free Expo account.
 2. On expo.dev, open **SplitSnap → Over-the-air updates → Update groups**, open the newest
    update and scan its QR code with the iPhone **Camera**. After that it is under **Recently
@@ -243,7 +244,12 @@ To start over, use **Account → Settings**:
 - The owner of the Supabase project can see all shared groups in its dashboard. Keep anything
   private out of them.
 - Supabase's free plan pauses the project after a week without activity. Shared groups don't sync
-  until the owner restores it from the Supabase dashboard.
+  until the owner restores it from the Supabase dashboard. A scheduled GitHub job
+  (`.github\workflows\keep-alive.yml`) reads from the database three times a day to make a pause
+  less likely; Supabase doesn't say exactly what counts as activity, so it is not a guarantee. If
+  the project stops answering, the job fails and GitHub emails the owner. It needs
+  `supabase\add_keep_alive.sql` run once in the SQL Editor, and GitHub switches scheduled jobs off
+  after 60 days without a commit (Actions → Keep Supabase awake → Enable workflow).
 
 **Everything else**
 - No real money moves. "Settle up" only records a payment. **Pay via UPI** opens a UPI app only on
