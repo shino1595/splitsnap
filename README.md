@@ -92,6 +92,7 @@ If the phone shows an error screen, tap **View error log** to see the details.
 - An **Activity** feed of everything that happened.
 - **Search** across descriptions, bill items, notes and people.
 - **Account:** your name and colour, default currency, **Appearance** (System / Light / Dark mode), and your totals.
+- **Backup & restore** (Settings): save everything to one file and bring it back later.
 - **Settings:** bill scanning key and engine, defaults, export everything as CSV, import a
   Splitwise group, reset the demo data, or clear all data.
 
@@ -200,6 +201,16 @@ Everything is stored **on the device or browser** that runs the app, except two 
 Groups you haven't shared, expenses and payments with friends outside a group, and your settings
 stay on the phone. An imported Splitwise file is read on the phone; it is not uploaded anywhere (the group it
 creates is an ordinary group until you share it).
+
+**Backups.** Settings → **Backup & restore** saves one JSON file with your groups, friends, expenses,
+payments and settings (not your OCR key or bill photos), and restores from a file or pasted text,
+replacing what is on the phone. Shared groups are not restored from the file: a group shared on
+this phone stays as it is, and one that was shared when the backup was made comes back by joining
+it again with its code (or as a plain copy, if the shared group no longer exists). If saved data
+can't be read at start-up, SplitSnap shows a recovery screen instead of loading the demo: it
+changes nothing until you choose to restore a backup or start empty (the old data is then set
+aside on the phone, not deleted). If the app itself hits an error it shows a problem screen with
+details to copy and send, and a button to share your saved data.
 
 To start over, use **Account → Settings**:
 - **Reset demo data** loads the sample groups and friends again and keeps your name and key.

@@ -54,6 +54,8 @@ export type RootStackParamList = {
   Search: undefined;
   /** OCR key/engine, default currency, export, reset demo data. */
   Settings: undefined;
+  /** Save everything to a file, or restore from one. */
+  Backup: undefined;
   /** Reads a Splitwise "Export as spreadsheet" CSV and creates a group from it. */
   ImportSplitwise: undefined;
   /** Roadmap 05 step A1: checks sign-in and a live update against the shared-groups server. */

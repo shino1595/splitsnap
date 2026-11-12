@@ -3,11 +3,12 @@ import { ActivityIndicator, StatusBar, StyleSheet, useColorScheme, View } from '
 import { DarkTheme, DefaultTheme, InitialState, NavigationContainer, Theme } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import RootNavigator from './src/navigation/RootNavigator';
-import { AppStoreProvider, useAppState, useStoreReady } from './src/store/AppStore';
+import { AppStoreProvider, useAppState, useStartupProblem, useStoreReady } from './src/store/AppStore';
+import RecoveryScreen from './src/screens/recovery/RecoveryScreen';
 import { DraftProvider } from './src/store/draft';
 import { SyncProvider } from './src/sync/SyncProvider';
 import { colors, setActiveTheme, themed, ThemeName } from './src/theme';
-import { AppText, DialogHost, loadTitleFont, useFontSettled } from './src/ui';
+import { AppText, CrashBoundary, DialogHost, loadTitleFont, useFontSettled } from './src/ui';
 
 function navigationThemeFor(name: ThemeName): Theme {
   const base = name === 'dark' ? DarkTheme : DefaultTheme;
@@ -44,6 +45,7 @@ function useResolvedTheme(): ThemeName {
 /** Waits for the saved state to load before showing any screen. */
 function AppContent() {
   const ready = useStoreReady();
+  const problem = useStartupProblem();
   const fontSettled = useFontSettled();
   const theme = useResolvedTheme();
   // Switch the palette before anything below renders, so `colors` and themed styles match.
@@ -52,6 +54,14 @@ function AppContent() {
   // state puts the user back where they were.
   const navState = React.useRef<InitialState | undefined>(undefined);
 
+  if (problem) {
+    return (
+      <>
+        <StatusBar barStyle={theme === 'dark' ? 'light-content' : 'dark-content'} />
+        <RecoveryScreen />
+      </>
+    );
+  }
   if (!ready || !fontSettled) {
     return (
       <View style={styles.loading} accessibilityLabel="Loading SplitSnap">
@@ -86,13 +96,15 @@ export default function App() {
   }, []);
   return (
     <SafeAreaProvider>
-      <AppStoreProvider>
-        <SyncProvider>
-          <DraftProvider>
-            <AppContent />
-          </DraftProvider>
-        </SyncProvider>
-      </AppStoreProvider>
+      <CrashBoundary>
+        <AppStoreProvider>
+          <SyncProvider>
+            <DraftProvider>
+              <AppContent />
+            </DraftProvider>
+          </SyncProvider>
+        </AppStoreProvider>
+      </CrashBoundary>
       <DialogHost />
     </SafeAreaProvider>
   );

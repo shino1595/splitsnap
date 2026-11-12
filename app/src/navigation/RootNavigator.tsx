@@ -19,6 +19,7 @@ import type { RootStackParamList, TabParamList } from './types';
 import ActivityScreen from '../screens/activity/ActivityScreen';
 import AccountScreen from '../screens/account/AccountScreen';
 import SettingsScreen from '../screens/account/SettingsScreen';
+import BackupScreen from '../screens/account/BackupScreen';
 import ImportSplitwiseScreen from '../screens/import/ImportSplitwiseScreen';
 import JoinGroupScreen from '../screens/sharing/JoinGroupScreen';
 import ShareGroupScreen from '../screens/sharing/ShareGroupScreen';
@@ -215,6 +216,7 @@ export default function RootNavigator() {
         component={ImportSplitwiseScreen}
         options={({ navigation }) => modal(navigation, 'Import from Splitwise')}
       />
+      <Stack.Screen name="Backup" component={BackupScreen} options={{ title: 'Backup & restore' }} />
       <Stack.Screen name="SyncTest" component={SyncTestScreen} options={{ title: 'Shared groups test' }} />
       <Stack.Screen name="ShareGroup" component={ShareGroupScreen} options={({ navigation }) => modal(navigation, 'Share group')} />
       <Stack.Screen name="JoinGroup" component={JoinGroupScreen} options={({ navigation }) => modal(navigation, 'Join a group')} />

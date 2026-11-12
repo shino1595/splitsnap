@@ -132,6 +132,14 @@ export default function SettingsScreen({ navigation }: RootScreenProps<'Settings
       ) : null}
       <ListCard>
         <ListItem
+          left={<RowIcon icon="save-outline" />}
+          title="Backup & restore"
+          subtitle="Save everything to a file, or bring a backup back"
+          onPress={() => navigation.navigate('Backup')}
+          showChevron
+          testID="settings-backup"
+        />
+        <ListItem
           left={<RowIcon icon="share-outline" />}
           title={exporting ? 'Preparing CSV…' : 'Export all as CSV'}
           subtitle={

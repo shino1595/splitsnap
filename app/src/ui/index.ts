@@ -30,3 +30,6 @@ export * from './TextField';
 export * from './Backdrop';
 export * from './GoldWash';
 export * from './GroupThemeTile';
+export * from './CrashBoundary';
+export * from './crashDetails';
+export * from './pickTextFile';

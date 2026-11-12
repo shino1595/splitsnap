@@ -1,6 +1,6 @@
 // Shape of the persisted AppState: defaults, a blank state and a defensive parser for
 // whatever comes back from storage. Pure (no React / React Native).
-import { ME_ID } from '../types';
+import { ME_ID, SCHEMA_VERSION } from '../types';
 import type { AppState, ISODateTime, Person, Settings } from '../types';
 import { avatarPalette } from '../theme';
 import { isGroupThemeId } from '../lib/groupThemes';
@@ -54,7 +54,7 @@ const isShareList = (v: unknown): boolean =>
  * data instead of crashing a screen.
  */
 export function isAppState(value: unknown): value is AppState {
-  if (!isRecord(value) || value.schemaVersion !== 1) return false;
+  if (!isRecord(value) || value.schemaVersion !== SCHEMA_VERSION) return false;
   const { people, friendIds, groups, expenses, payments, activity, settings } = value;
   if (!isRecordOf(people, (p) => typeof p.name === 'string' && typeof p.color === 'string')) return false;
   if (!isRecord(people) || !isRecord(people[ME_ID])) return false;
@@ -98,18 +98,75 @@ function withKnownThemes(groups: AppState['groups']): AppState['groups'] {
   return out;
 }
 
-/** JSON from storage → AppState, or null when missing, unparseable, from another schema or damaged. */
-export function parsePersistedState(raw: string | null | undefined): AppState | null {
-  if (!raw) return null;
+export type Migration = (old: Record<string, unknown>) => Record<string, unknown>;
+
+/** MIGRATIONS[n] turns a saved state of schema n into schema n + 1. Empty while SCHEMA_VERSION is 1. */
+export const MIGRATIONS: Record<number, Migration> = {};
+
+export type SavedStateResult =
+  | { kind: 'none' }
+  | { kind: 'ok'; state: AppState; upgradedFrom?: number }
+  | { kind: 'damaged'; reason: 'not-json' | 'newer-version' | 'bad-shape' };
+
+const BAD_SHAPE: SavedStateResult = { kind: 'damaged', reason: 'bad-shape' };
+
+/** A parsed value → state. Runs migrations from its schemaVersion up to `target`. */
+export function readSavedValue(
+  value: unknown,
+  migrations: Record<number, Migration> = MIGRATIONS,
+  target: number = SCHEMA_VERSION,
+): SavedStateResult {
+  if (!isRecord(value)) return BAD_SHAPE;
+  const version = value.schemaVersion;
+  if (typeof version !== 'number' || !Number.isInteger(version) || version < 1) return BAD_SHAPE;
+  if (version > target) return { kind: 'damaged', reason: 'newer-version' };
+
+  let current: Record<string, unknown> = value;
+  for (let v = version; v < target; v++) {
+    const step = Object.prototype.hasOwnProperty.call(migrations, v) ? migrations[v] : undefined;
+    if (!step) return BAD_SHAPE;
+    try {
+      const out = step(current);
+      if (!isRecord(out)) return BAD_SHAPE;
+      current = { ...out, schemaVersion: v + 1 };
+    } catch {
+      return BAD_SHAPE;
+    }
+  }
+
+  // Another target only happens in tests of the upgrade step: the shape check is for this build's schema.
+  if (target !== SCHEMA_VERSION) {
+    if (current.schemaVersion !== target) return BAD_SHAPE;
+    const upgraded = current as unknown as AppState;
+    return version < target ? { kind: 'ok', state: upgraded, upgradedFrom: version } : { kind: 'ok', state: upgraded };
+  }
+  if (!isAppState(current)) return BAD_SHAPE;
+  const state: AppState = current;
+  // Fill settings added after the state was saved.
+  const result: AppState = { ...state, groups: withKnownThemes(state.groups), settings: { ...DEFAULT_SETTINGS, ...state.settings } };
+  return version < target ? { kind: 'ok', state: result, upgradedFrom: version } : { kind: 'ok', state: result };
+}
+
+/** JSON text from storage → state. null/undefined/'' → 'none'. */
+export function readSavedState(
+  raw: string | null | undefined,
+  migrations: Record<number, Migration> = MIGRATIONS,
+  target: number = SCHEMA_VERSION,
+): SavedStateResult {
+  if (!raw) return { kind: 'none' };
   let value: unknown;
   try {
     value = JSON.parse(raw);
   } catch {
-    return null;
+    return { kind: 'damaged', reason: 'not-json' };
   }
-  if (!isAppState(value)) return null;
-  // Fill settings added after the state was saved.
-  return { ...value, groups: withKnownThemes(value.groups), settings: { ...DEFAULT_SETTINGS, ...value.settings } };
+  return readSavedValue(value, migrations, target);
+}
+
+/** JSON from storage → AppState, or null when missing, unparseable, from another schema or damaged. */
+export function parsePersistedState(raw: string | null | undefined): AppState | null {
+  const result = readSavedState(raw);
+  return result.kind === 'ok' ? result.state : null;
 }
 
 /**

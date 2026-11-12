@@ -13,8 +13,10 @@ import type { LocalBatch } from '../sync/types';
 import { loadSyncState, sharedGroupIdsNow } from '../sync/syncStorage';
 import { canDeleteGroup, canRemoveFriend, canRemoveGroupMember } from './selectors';
 import { createDemoState, createEmptyState } from './seed';
-import { loadState, saveState } from './persistence';
+import { keepUnreadableCopy, loadSavedState, saveState } from './persistence';
+import type { LoadOutcome } from './persistence';
 import { demoKeepingProfile } from './stateShape';
+import { restoreState } from './backup';
 
 export interface StoreActions {
   addFriend(input: { name: string; email?: string; phone?: string; upiId?: string }): Person;
@@ -52,6 +54,20 @@ export interface StoreActions {
   clearAllData(): void;
   /** Changes from a shared group's server (sync engine only); logs no activity of its own. */
   applyRemote(batch: LocalBatch): void;
+  /** Replaces this phone's data with a backup; groups shared on this phone keep their own copy (see backup.restoreState). */
+  restoreBackup(backup: AppState, opts: { sharedInBackup: ID[]; includeSharedCopies: boolean }): void;
+}
+
+/** Why the app did not start: saved data it can't read, or storage that failed. Nothing is written while this is set. */
+export type StartupProblem =
+  | { kind: 'damaged'; raw: string; reason: 'not-json' | 'newer-version' | 'bad-shape' }
+  | { kind: 'unreadable'; message: string };
+
+export interface StartupRecovery {
+  /** Reads storage again. */
+  retry(): void;
+  /** Damaged data only: sets the unreadable data aside (keepUnreadableCopy), then starts from state (an empty state when omitted). Rejects, changing nothing, if the copy can't be written. */
+  startFrom(state?: AppState): Promise<void>;
 }
 
 /** Called after every dispatch that changed the state, with the action that changed it. */
@@ -72,6 +88,8 @@ const StateContext = React.createContext<AppState | null>(null);
 const ReadyContext = React.createContext<boolean>(false);
 const ActionsContext = React.createContext<StoreActions | null>(null);
 const InternalsContext = React.createContext<StoreInternals | null>(null);
+const ProblemContext = React.createContext<StartupProblem | null>(null);
+const RecoveryContext = React.createContext<StartupRecovery | null>(null);
 
 const nowISO = (): string => new Date().toISOString();
 
@@ -87,6 +105,9 @@ function demoOrEmpty(today: ISODate): AppState {
 export function AppStoreProvider(props: { children: React.ReactNode }): React.JSX.Element {
   const [state, setState] = React.useState<AppState>(createEmptyState);
   const [ready, setReady] = React.useState(false);
+  const [problem, setProblem] = React.useState<StartupProblem | null>(null);
+  const [attempt, setAttempt] = React.useState(0);
+  const problemRef = React.useRef<StartupProblem | null>(null);
   // Source of truth between renders. dispatch updates it synchronously, so an action
   // can return its result at once and several actions in one handler build on each other.
   const stateRef = React.useRef(state);
@@ -121,22 +142,57 @@ export function AppStoreProvider(props: { children: React.ReactNode }): React.JS
     }
   }, [dispatch]);
 
-  // Load once: saved state, else demo data. The sync state is loaded first, so the recurring
-  // check below knows which groups are shared on this phone.
-  React.useEffect(() => {
-    let cancelled = false;
-    Promise.all([loadState().catch(() => null), loadSyncState()])
-      .then(([saved]) => {
-        if (cancelled) return;
-        dispatch({ type: 'state/replace', state: saved || demoOrEmpty(todayISO()) });
+  // Saved state, else demo data. The sync state is loaded first, so the recurring check below
+  // knows which groups are shared on this phone. Data that can't be read is never replaced:
+  // nothing is dispatched and the store stays not ready, so nothing is saved and sync stays off.
+  const load = React.useCallback(
+    (isCancelled: () => boolean): void => {
+      Promise.all([
+        loadSavedState().catch((e: unknown): LoadOutcome => ({ kind: 'unreadable', message: e instanceof Error ? e.message : String(e) })),
+        loadSyncState(),
+      ]).then(([outcome]) => {
+        if (isCancelled()) return;
+        if (outcome.kind === 'damaged' || outcome.kind === 'unreadable') {
+          problemRef.current = outcome;
+          setProblem(outcome);
+          return;
+        }
+        problemRef.current = null;
+        setProblem(null);
+        dispatch({ type: 'state/replace', state: outcome.kind === 'ok' ? outcome.state : demoOrEmpty(todayISO()) });
         readyRef.current = true;
         setReady(true);
       });
+    },
+    [dispatch],
+  );
+
+  React.useEffect(() => {
+    let cancelled = false;
+    load(() => cancelled);
     return () => {
       cancelled = true;
     };
-  }, [dispatch]);
+  }, [load, attempt]);
 
+  const recovery = React.useMemo<StartupRecovery>(
+    () => ({
+      retry() {
+        setAttempt((n) => n + 1);
+      },
+      async startFrom(state) {
+        const current = problemRef.current;
+        if (!current || current.kind !== 'damaged') throw new Error('There is no unreadable data to set aside.');
+        await keepUnreadableCopy(current.raw, nowISO());
+        problemRef.current = null;
+        dispatch({ type: 'state/replace', state: state ?? createEmptyState() });
+        readyRef.current = true;
+        setProblem(null);
+        setReady(true);
+      },
+    }),
+    [dispatch],
+  );
   // Recurring copies that fell due while the app was closed, once loaded. Not inside the load
   // above: SyncProvider (a child, so its effects run first in this commit) starts the sync engine
   // on `ready`, and the engine only sends what changed after it took its starting state.
@@ -299,6 +355,11 @@ export function AppStoreProvider(props: { children: React.ReactNode }): React.JS
       applyRemote(batch) {
         dispatch({ type: 'sync/applyRemote', batch, at: nowISO() });
       },
+
+      restoreBackup(backup, opts) {
+        dispatch({ type: 'state/restore', state: restoreState(current(), backup, { sharedHere: sharedGroupIdsNow(), ...opts }) });
+        processDueRecurring();
+      },
     };
   }, [dispatch, processDueRecurring]);
 
@@ -322,11 +383,15 @@ export function AppStoreProvider(props: { children: React.ReactNode }): React.JS
 
   return (
     <ReadyContext.Provider value={ready}>
-      <InternalsContext.Provider value={internals}>
-        <ActionsContext.Provider value={actions}>
-          <StateContext.Provider value={state}>{props.children}</StateContext.Provider>
-        </ActionsContext.Provider>
-      </InternalsContext.Provider>
+      <ProblemContext.Provider value={problem}>
+        <RecoveryContext.Provider value={recovery}>
+          <InternalsContext.Provider value={internals}>
+            <ActionsContext.Provider value={actions}>
+              <StateContext.Provider value={state}>{props.children}</StateContext.Provider>
+            </ActionsContext.Provider>
+          </InternalsContext.Provider>
+        </RecoveryContext.Provider>
+      </ProblemContext.Provider>
     </ReadyContext.Provider>
   );
 }
@@ -340,6 +405,17 @@ export function useAppState(): AppState {
 /** False until the saved state (or the demo data) has been loaded. */
 export function useStoreReady(): boolean {
   return React.useContext(ReadyContext);
+}
+
+/** Set when the saved data can't be opened; the app shows the recovery screen and saves nothing. */
+export function useStartupProblem(): StartupProblem | null {
+  return React.useContext(ProblemContext);
+}
+
+export function useStartupRecovery(): StartupRecovery {
+  const recovery = React.useContext(RecoveryContext);
+  if (!recovery) throw new Error('useStartupRecovery must be used inside <AppStoreProvider>.');
+  return recovery;
 }
 
 export function useActions(): StoreActions {

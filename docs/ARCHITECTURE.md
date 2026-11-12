@@ -499,7 +499,26 @@ defaultCurrency 'INR', ocrApiKey '', ocrEngine 2, simplifyDebtsDefault true. Dat
 export async function loadState(): Promise<AppState | null>;      // null if nothing saved or corrupt
 export async function saveState(state: AppState): Promise<void>;
 export async function clearSavedState(): Promise<void>;
+export type LoadOutcome = { kind: 'none' } | { kind: 'ok'; state } | { kind: 'damaged'; raw; reason: 'not-json' | 'newer-version' | 'bad-shape' } | { kind: 'unreadable'; message };
+export async function loadSavedState(): Promise<LoadOutcome>;     // what start-up uses; never writes STORAGE_KEY
+export async function readRawSavedState(): Promise<string | null>;  // the saved text as stored (recovery and crash screens)
+export async function keepUnreadableCopy(raw: string, at: string): Promise<string>;  // copy to 'splitsnap/state/kept/<time>'; rejects if the write fails
 ```
+
+**Safe start-up.** `AppStore` loads with `loadSavedState()`. `ok` and `none` (demo data) go on as before. `damaged` and `unreadable` dispatch nothing and leave the store not ready, so nothing is saved over the data and sync does not start; `useStartupProblem()` returns the problem and `App.tsx` shows `RecoveryScreen`. `useStartupRecovery()` gives `retry()` (read storage again) and `startFrom(state?)` (damaged data only: `keepUnreadableCopy` first, then start from `state` or an empty state; rejects without changing anything if the copy can't be written).
+
+**Upgrade step.** `stateShape.ts` holds `MIGRATIONS[n]`, which turns a saved state of schema n into n + 1, and `readSavedState` / `readSavedValue`, which run them from the saved `schemaVersion` up to `SCHEMA_VERSION`. A newer schema is `damaged / newer-version` and is never overwritten. To change the persisted shape: bump `SCHEMA_VERSION` in `types.ts`, add `MIGRATIONS[<old version>] = (old) => ({ ...old, ... })`, update `isAppState` and add a test in `tests/store/savedState.test.ts`. `loadSavedState` copies the old text to `splitsnap/state/before-upgrade-v<n>` before the upgraded state is used.
+
+### store/backup.ts (pure)
+```ts
+BACKUP_FORMAT, BACKUP_VERSION, MAX_BACKUP_BYTES
+buildBackup(state, { at, sharedGroupIds? }): string      // envelope { format, version, exportedAt, sharedGroupIds, state }; OCR key left out
+readBackup(text): { ok: true, state, exportedAt, sharedGroupIds, counts } | { ok: false, error }   // also accepts a bare saved state
+checkIntegrity(state): string[]                           // problems that would break balances or crash a screen
+restoreState(current, backup, { sharedHere, sharedInBackup, includeSharedCopies }): AppState
+countsOf, countsText, backupFilename
+```
+Reducer action `state/restore` returns the given state (separate from `state/replace`, which makes the sync engine stop sharing). `StoreActions.restoreBackup(backup, { sharedInBackup, includeSharedCopies })` dispatches it with `restoreState(current, backup, { sharedHere: sharedGroupIdsNow(), ... })`: groups shared on this phone keep the phone's own copy, and groups shared when the backup was made are left out unless `includeSharedCopies`.
 
 ---------------------------------------------------------------------------------------------
 ## 6. `src/ui` — shared components (export everything from `src/ui/index.ts`)
@@ -540,6 +559,9 @@ LoadingOverlay({ visible, message? })
 
 `fonts.ts` loads Cormorant Garamond Bold (OFL, static TTF from `@expo-google-fonts/cormorant-garamond@0.4.1` via jsDelivr) with `expo-font`: `loadTitleFont()` (called in App.tsx), `useTitleFont()` (re-renders when ready), `useFontSettled()` (App shows its loading screen for at most 2.5 s). Only `AppText` `title` (27, letterSpacing 0.2, no fontWeight; `plain` keeps the system font for values such as amounts) and navigation header titles (22) use it; if loading fails they stay in the system font.
 
+### ui/CrashBoundary.tsx, ui/pickTextFile.ts, ui/crashDetails.ts
+`CrashBoundary` is an error boundary around the providers in `App.tsx` (`DialogHost` stays outside). Its full-screen problem report (plain views, safe-area insets, no navigation) shows `crashDetails({ error, componentStack, platform, at })` (pure, no user data) with Copy details, Share my saved data (`readRawSavedState` then `shareFile`) and Try again. `pickTextFile(maxBytes)` picks a text file with `expo-document-picker` (loaded with `import()`) and resolves `{ ok: true, text, name }` or `{ ok: false, reason: 'cancelled' | 'unavailable' | 'too-big' | 'unreadable' }`.
+
 ### ui/dialogs.ts
 ```ts
 export function showAlert(title: string, message?: string): void;                         // web: window.alert
@@ -558,7 +580,7 @@ export async function openUpiPayment(args: { upiId: string; name: string; amount
 
 `App.tsx`: `SafeAreaProvider` → `AppStoreProvider` → `DraftProvider` → `NavigationContainer`
 (theme background `colors.background`) → `RootNavigator`. While `useStoreReady()` is false show
-a centred `ActivityIndicator`.
+a centred `ActivityIndicator`. When `useStartupProblem()` is set, `AppContent` renders `screens/recovery/RecoveryScreen.tsx` instead (not a route, no navigation hooks): Try again, and for damaged data Share the saved data, Restore from a backup file and Start with an empty app. `CrashBoundary` wraps the providers.
 
 `src/navigation/RootNavigator.tsx`: native stack `RootStackParamList`, first screen `Tabs`
 (bottom tabs: Groups, Friends, centre **+** (AddTab → `navigation.navigate('AddExpense')`,
@@ -592,6 +614,7 @@ dynamic.
 | SettleUp | `screens/settle/SettleUpScreen.tsx` | If no from/to given: list of my debts/credits (from group or overall) to pick from; payer → payee row with avatars and swap button; AmountField prefilled; method chips Cash / UPI / Bank / Other; date; note; 'Pay via UPI' button when I pay, payee has upiId and currency INR (opens UPI app, then asks to record); Save → addPayment → back |
 | PaymentDetail | `screens/settle/PaymentDetailScreen.tsx` | Who paid whom, amount, date, method, note, group; delete (confirm) |
 | Search | `screens/search/SearchScreen.tsx` | Autofocus search box, results via `searchExpenses` with group name, tap → ExpenseDetail |
+| Backup | `screens/account/BackupScreen.tsx` | Back up: counts and **Save a backup file** (`shareFile`). Restore: choose a file or paste text, read it with `readBackup`, show the counts and notes about shared groups, then **Replace this phone's data** (confirm, then `restoreBackup`). Reached from the first row of Settings → Your data |
 | Settings | `screens/account/SettingsScreen.tsx` | Bill scanning: OCR.space API key (secure field, 'Get a free key' explanation text with the URL https://ocr.space/ocrapi/freekey; banner says which key scans use: own, SplitSnap's built-in key, or the demo key), engine segmented (1/2/3 with one-line explanations; 2 default); default currency; simplify default; Export all as CSV; Reset demo data (confirm); Clear all data (confirm) |
 
 ---------------------------------------------------------------------------------------------

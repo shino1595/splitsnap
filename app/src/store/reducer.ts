@@ -68,6 +68,8 @@ export interface Stamp {
 
 export type AppAction =
   | { type: 'state/replace'; state: AppState }
+  /** A restored backup. Separate from state/replace, which makes the sync engine stop sharing. */
+  | { type: 'state/restore'; state: AppState }
   /** Wipe everything except the user's own profile and settings. */
   | { type: 'state/clear'; at: ISODateTime }
   | ({ type: 'friend/add'; id: ID; input: FriendInput } & Stamp)
@@ -507,6 +509,7 @@ export function applyRemoteBatch(state: AppState, batch: LocalBatch, at: ISODate
 
 export function appReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
+    case 'state/restore':
     case 'state/replace':
       return action.state;
 
