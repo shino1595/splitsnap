@@ -3,6 +3,7 @@ import { Linking, Platform, Share } from 'react-native';
 import type { CurrencyCode, Minor } from '../types';
 import { toMajor } from '../lib/money';
 import { confirmAsync, showAlert } from './dialogs';
+import { shareTextAsFile } from './files';
 
 /** The few browser APIs used here, looked up on globalThis so this file needs no DOM typings. */
 interface WebAnchor {
@@ -101,17 +102,24 @@ async function offerCopyAfterDownload(filename: string, contents: string): Promi
   }
 }
 
+/** Phone: a real file in the share sheet; when files or sharing are unavailable, the text itself. */
+async function shareFileNative(filename: string, fileBody: string, text: string, mimeType: string): Promise<void> {
+  if (await shareTextAsFile(filename, fileBody, mimeType)) return;
+  try {
+    await Share.share({ message: text, title: filename }, { dialogTitle: filename, subject: filename });
+  } catch {
+    showAlert('Could not share', 'Sharing is not available on this device.');
+  }
+}
+
 /**
- * Web: downloads `contents` as `filename`. Native: shares the text through the share sheet
- * (Snack has no file-system APIs, so there is no real file to attach).
+ * Web: downloads `contents` as `filename`. Phone: shares a real file through the share sheet
+ * (Save to Files, Drive, send to a chat); where files or sharing are unavailable (Expo Snack),
+ * it shares the text instead.
  */
 export async function shareFile(filename: string, contents: string, mimeType: string = 'text/plain'): Promise<void> {
   if (Platform.OS !== 'web') {
-    try {
-      await Share.share({ message: contents, title: filename }, { dialogTitle: filename, subject: filename });
-    } catch {
-      showAlert('Could not share', 'Sharing is not available on this device.');
-    }
+    await shareFileNative(filename, contents, contents, mimeType);
     return;
   }
 
@@ -139,13 +147,13 @@ export async function shareFile(filename: string, contents: string, mimeType: st
   if (inFrame()) await offerCopyAfterDownload(filename, contents);
 }
 
-/** Web: downloads `filename` (UTF-8 with BOM, so Excel shows ₹ correctly). Native: shares the CSV text. */
+/** Downloads or shares `filename` as UTF-8 with BOM, so Excel shows ₹ correctly. Where a phone can't share a file, the CSV text goes out without the BOM. */
 export async function shareCsv(filename: string, csv: string): Promise<void> {
+  const body = csv.startsWith(UTF8_BOM) ? csv : UTF8_BOM + csv;
   if (Platform.OS !== 'web') {
-    await shareFile(filename, csv, 'text/csv');
+    await shareFileNative(filename, body, withoutBom(csv), 'text/csv');
     return;
   }
-  const body = csv.startsWith(UTF8_BOM) ? csv : UTF8_BOM + csv;
   await shareFile(filename, body, 'text/csv;charset=utf-8');
 }
 

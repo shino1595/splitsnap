@@ -106,7 +106,7 @@ export default function BackupScreen({ navigation }: RootScreenProps<'Backup'>) 
         </AppText>
         <AppText weight="medium">{countsText(counts)}</AppText>
         <Button title="Save a backup file" icon="save-outline" onPress={save} fullWidth testID="backup-save" />
-        <AppText variant="caption">On a phone, pick Save to Files, Drive or email in the share menu. Chat apps can cut long text short.</AppText>
+        <AppText variant="caption">On a phone, pick Save to Files or Drive in the share menu, or send the file to yourself.</AppText>
       </Card>
 
       <SectionHeader title="Restore" />

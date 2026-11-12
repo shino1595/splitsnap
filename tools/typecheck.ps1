@@ -91,6 +91,8 @@ $pins = [ordered]@{
     'expo-image-picker'                         = '55.0.24'
     'expo-image-manipulator'                    = '55.0.21'
     'expo-document-picker'                      = '55.0.17'
+    'expo-file-system'                          = '~55.0.26'
+    'expo-sharing'                              = '~55.0.25'
     'expo-modules-core'                         = '~55.0.0'
     'expo-font'                                 = '~55.0.0'
     'expo'                                      = '~55.0.0'
@@ -107,6 +109,8 @@ if ($Sdk -eq '58') {
     $pins['expo-image-picker'] = '~58.0.10'
     $pins['expo-image-manipulator'] = '~58.0.16'
     $pins['expo-document-picker'] = '~58.0.4'
+    $pins['expo-file-system'] = '~58.0.13'
+    $pins['expo-sharing'] = '~58.0.23'
     $pins['expo-modules-core'] = '~58.0.30'
     $pins['expo-font'] = '~58.0.11'
     $pins['expo'] = '~58.0.23'
@@ -121,6 +125,8 @@ if ($Sdk -eq '54') {
     $pins['expo-image-picker'] = '~17.0.11'
     $pins['expo-image-manipulator'] = '~14.0.8'
     $pins['expo-document-picker'] = '~14.0.8'
+    $pins['expo-file-system'] = '~19.0.24'
+    $pins['expo-sharing'] = '~14.0.8'
     $pins['expo-modules-core'] = '~3.0.30'
     $pins['expo-font'] = '~14.0.0'
     $pins['expo'] = '~54.0.0'
@@ -132,7 +138,7 @@ Write-Host "Checking against Expo SDK $Sdk library versions."
 $allowedPackages = @(
     'react', 'react-native', '@react-navigation/native', '@react-navigation/native-stack',
     '@react-navigation/bottom-tabs', 'react-native-safe-area-context', 'react-native-screens',
-    '@react-native-async-storage/async-storage', 'expo-image-picker', 'expo-image-manipulator', 'expo-document-picker', 'expo-font',
+    '@react-native-async-storage/async-storage', 'expo-image-picker', 'expo-image-manipulator', 'expo-document-picker', 'expo-file-system', 'expo-sharing', 'expo-font',
     '@expo/vector-icons', '@supabase/supabase-js', 'react-native-url-polyfill'
 )
 
