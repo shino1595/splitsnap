@@ -54,10 +54,12 @@ export function inviteMessage(groupName: string, code: string): string {
   return [
     `Join "${groupName}" on SplitSnap, so we can split our costs together.`,
     '',
-    `1. Open SplitSnap in Expo Go: ${APP_LINK}`,
-    // A fresh install opens on the demo groups, so Join is in the "Add a group" menu.
-    `2. Go to Groups, tap "${ADD_GROUP_TITLE}", then "${JOIN_GROUP_TITLE}", and enter the code ${formatJoinCode(code)}`,
-    '3. Tap "That\'s me" next to your name, or join as a new member if your name isn\'t there.',
+    '1. Install the free Expo Go app from the App Store or Play Store.',
+    '2. Open Expo Go and log in with the Expo account I added to SplitSnap for you. Do this first: without it the link in step 3 fails (on Android it only says "Failed to download remote update").',
+    `3. Open SplitSnap: ${APP_LINK}`,
+    // A fresh install shows "Join a group" on the Groups tab; with groups it is in the "Add a group" menu.
+    `4. On the Groups tab tap "${JOIN_GROUP_TITLE}" (if you already have groups: "${ADD_GROUP_TITLE}", then "${JOIN_GROUP_TITLE}") and enter the code ${formatJoinCode(code)}`,
+    '5. Tap "That\'s me" next to your name, or join as a new member if your name isn\'t there.',
   ].join('\n');
 }
 

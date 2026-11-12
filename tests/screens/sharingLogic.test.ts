@@ -80,25 +80,46 @@ describe('join codes', () => {
 });
 
 describe('invite message', () => {
+  const lines = (): string[] => inviteMessage('Goa Trip', 'K7M2QX9P').split('\n');
+  const lineWith = (part: string): string => {
+    const found = lines().find((l) => l.includes(part));
+    if (!found) throw new Error(`no line with ${part}`);
+    return found;
+  };
+
   it('has the group name, the readable code and the fixed app link', () => {
     const text = inviteMessage('Goa Trip', 'K7M2QX9P');
     expect(text).toContain('"Goa Trip"');
     expect(text).toContain('K7M2-QX9P');
     expect(text).toContain(APP_LINK);
     expect(text).toContain("That's me");
-    expect(text.split('\n')).toHaveLength(5);
-    expect(text.split('\n')[4]).toBe('3. Tap "That\'s me" next to your name, or join as a new member if your name isn\'t there.');
+    expect(lines()[0]).toBe('Join "Goa Trip" on SplitSnap, so we can split our costs together.');
+    expect(lines()[1]).toBe('');
+    expect(lines()).toHaveLength(7);
   });
 
-  it('leads with the Add a group menu (a fresh install shows demo groups), using the labels the Groups tab shows', () => {
-    const line = inviteMessage('Goa Trip', 'K7M2QX9P').split('\n')[3];
-    expect(line).toBe('2. Go to Groups, tap "Add a group", then "Join a group", and enter the code K7M2-QX9P');
-    expect(line.indexOf(`"${ADD_GROUP_TITLE}"`)).toBeLessThan(line.indexOf(`"${JOIN_GROUP_TITLE}"`));
+  it('asks for the Expo Go log-in before the link, because the link fails without it', () => {
+    const logIn = lines().indexOf(lineWith('log in with the Expo account'));
+    const link = lines().indexOf(lineWith(APP_LINK));
+    expect(logIn).toBeGreaterThan(0);
+    expect(logIn).toBeLessThan(link);
+    expect(lines().indexOf(lineWith('Install the free Expo Go app'))).toBeLessThan(logIn);
+    expect(lineWith('log in with')).toContain('Failed to download remote update');
+  });
+
+  it('tells a new user and a user with groups where to join, using the labels the Groups tab shows', () => {
+    const line = lineWith('enter the code');
+    expect(line).toBe(
+      '4. On the Groups tab tap "Join a group" (if you already have groups: "Add a group", then "Join a group") and enter the code K7M2-QX9P',
+    );
     expect(line).toContain(`"${JOIN_GROUP_TITLE}"`);
     expect(line).toContain(`"${ADD_GROUP_TITLE}"`);
     expect(addGroupOptions(true).some((o) => o.title === JOIN_GROUP_TITLE)).toBe(true);
   });
 
+  it('ends with claiming your name', () => {
+    expect(lines()[lines().length - 1]).toBe('5. Tap "That\'s me" next to your name, or join as a new member if your name isn\'t there.');
+  });
   it('uses the Expo Go link for runtime SDK 58 on the main channel', () => {
     expect(APP_LINK).toBe(
       'exp://u.expo.dev/e2a3167d-0539-40eb-8acf-3593c97841b5?runtime-version=exposdk%3A58.0.0&channel-name=main',
@@ -110,7 +131,7 @@ describe('invite message', () => {
   });
 
   it('a code copied from the message passes validation', () => {
-    const line = inviteMessage('Goa Trip', 'K7M2QX9P').split('\n')[3];
+    const line = inviteMessage('Goa Trip', 'K7M2QX9P').split('\n').filter((l) => l.includes('enter the code'))[0];
     const typed = line.slice(line.lastIndexOf(' ') + 1);
     expect(joinCodeProblem(typed)).toBeNull();
     expect(normalizeJoinCode(typed)).toBe('K7M2QX9P');
