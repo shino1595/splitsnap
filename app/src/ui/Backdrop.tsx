@@ -65,7 +65,8 @@ export function Backdrop() {
 }
 
 const styles = themed((colors) => StyleSheet.create({
-  layer: { ...StyleSheet.absoluteFillObject, overflow: 'hidden' },
+  // Spelled out: StyleSheet.absoluteFillObject is missing in the React Native that Expo Go runs.
+  layer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, overflow: 'hidden' },
   glow: { position: 'absolute', top: 0, left: 0, right: 0, height: GLOW_HEIGHT },
   circle: { position: 'absolute', borderWidth: 1, borderColor: colors.accentLine },
   l1: { backgroundColor: colors.layer1 },

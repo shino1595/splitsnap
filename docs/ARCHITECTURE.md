@@ -42,6 +42,9 @@ it (new exports are fine) but never change an existing signature.
    - Sharing: use `shareText` / `shareFile` from `src/ui/share.ts`.
    - No `Intl` (format money/dates with `src/lib/money.ts` and `src/lib/dates.ts`).
    - Avoid `position: 'fixed'`, `gap` is fine (RN 0.71+ and RN-web support it).
+   - Never use `StyleSheet.absoluteFillObject`: it works in the Snack web preview but is missing in
+     the React Native that Expo Go runs, so the view collapses and nothing in it shows. Use
+     `StyleSheet.absoluteFill` or spell out `position: 'absolute'` with the four edges.
 5. **Money is always integer minor units** (`Minor`). Convert only at the edges
    (`parseAmountInput` from text, `formatMoney` for display). Splits must add up exactly;
    use `allocate()` (largest remainder) — never `Math.round(total / n)` alone.

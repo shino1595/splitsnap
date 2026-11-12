@@ -78,7 +78,7 @@ const styles = themed((colors) => StyleSheet.create({
     backgroundColor: colors.card,
     overflow: 'hidden',
   },
-  decor: StyleSheet.absoluteFillObject,
+  decor: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   art: { position: 'absolute', top: 0, right: 0, height: TILE_HEIGHT },
   fade: { position: 'absolute', top: 0, bottom: 0, left: 0, width: '60%' },
   content: { flexGrow: 1, justifyContent: 'center', gap: 4, paddingVertical: 12, paddingHorizontal: 14 },
