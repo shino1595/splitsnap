@@ -29,6 +29,7 @@ import {
   SectionHeader,
   TextField,
   toneColor,
+  useReceiptSource,
 } from '../../ui';
 import { expenseImpactFor } from '../activity/activityFeed';
 
@@ -245,21 +246,24 @@ function BillTotals({ bill, result, currency }: { bill: ItemizedBill; result: It
 
 // ---------- Receipt photo ----------
 
-function ReceiptPhoto({ uri }: { uri: string }) {
+function ReceiptPhoto({ uri: stored }: { uri: string }) {
   const insets = useSafeAreaInsets();
   const [open, setOpen] = React.useState(false);
   const [failed, setFailed] = React.useState(false);
+  const source = useReceiptSource(stored);
+  const uri = source.uri;
 
-  if (failed) {
+  if (source.missing || failed) {
     return (
       <Card style={styles.receiptMissing}>
         <Icon name="image-outline" size={22} color={colors.textMuted} />
         <AppText variant="label" color={colors.textMuted} style={styles.flex}>
-          The bill photo can’t be shown on this device.
+          Photo not on this phone
         </AppText>
       </Card>
     );
   }
+  if (uri === null) return null;
 
   return (
     <>

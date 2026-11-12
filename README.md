@@ -76,7 +76,7 @@ If the phone shows an error screen, tap **View error log** to see the details.
 **Expenses**
 - Add an expense to a group or with friends, in 25 currencies.
 - The category is guessed from the description (18 categories), and you can change it.
-- Set the date and notes, and attach a bill photo.
+- Set the date and notes, and attach a bill photo. The photo is kept on the phone until you remove it from the expense.
 - Repeat it weekly, every 2 weeks, monthly or yearly.
 - **Paid by:** you, someone else, or several people.
 - **Split:** equally, exact amounts, percentages, shares, adjustments, or **item by item**.
@@ -204,7 +204,7 @@ stay on the phone. An imported Splitwise file is read on the phone; it is not up
 creates is an ordinary group until you share it).
 
 **Backups.** Settings → **Backup & restore** saves one JSON file with your groups, friends, expenses,
-payments and settings (not your OCR key or bill photos), and restores from a file or pasted text,
+payments and settings (not your OCR key; a bill photo is not in the file, only the link to it, so it stays on the phone it was taken on), and restores from a file or pasted text,
 replacing what is on the phone. Shared groups are not restored from the file: a group shared on
 this phone stays as it is, and one that was shared when the backup was made comes back by joining
 it again with its code (or as a plain copy, if the shared group no longer exists). If saved data

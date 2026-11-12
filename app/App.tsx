@@ -8,7 +8,7 @@ import RecoveryScreen from './src/screens/recovery/RecoveryScreen';
 import { DraftProvider } from './src/store/draft';
 import { SyncProvider } from './src/sync/SyncProvider';
 import { colors, setActiveTheme, themed, ThemeName } from './src/theme';
-import { AppText, CrashBoundary, DialogHost, loadTitleFont, useFontSettled } from './src/ui';
+import { AppText, CrashBoundary, DialogHost, loadTitleFont, sweepKeptReceipts, useFontSettled } from './src/ui';
 
 function navigationThemeFor(name: ThemeName): Theme {
   const base = name === 'dark' ? DarkTheme : DefaultTheme;
@@ -53,6 +53,19 @@ function AppContent() {
   // Remounting the navigator redraws every screen in the new colours; the saved navigation
   // state puts the user back where they were.
   const navState = React.useRef<InitialState | undefined>(undefined);
+
+  // Once per start, after the saved state loaded: delete kept bill photos no expense refers to.
+  // Skipped when the data was unreadable at any point, because the photos may belong to it.
+  const state = useAppState();
+  const stateRef = React.useRef(state);
+  stateRef.current = state;
+  const sawProblem = React.useRef(false);
+  if (problem) sawProblem.current = true;
+  React.useEffect(() => {
+    if (!ready || sawProblem.current) return;
+    const inUse = Object.values(stateRef.current.expenses).flatMap((e) => (e.receiptUri ? [e.receiptUri] : []));
+    void sweepKeptReceipts(inUse);
+  }, [ready]);
 
   if (problem) {
     return (

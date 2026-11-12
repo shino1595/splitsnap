@@ -21,6 +21,7 @@ it (new exports are fine) but never change an existing signature.
    `@react-navigation/bottom-tabs`, `react-native-safe-area-context`, `react-native-screens`,
    `@react-native-async-storage/async-storage`, `expo-image-picker`, `expo-image-manipulator`,
    `expo-document-picker` and `expo-font` (both loaded with `import()`, like the photo libraries),
+   `expo-file-system` and `expo-sharing` (loaded with `import()` only in `src/ui/files.ts`; nothing else imports them),
    `@supabase/supabase-js` and `react-native-url-polyfill` (shared groups only, loaded with
    `import()` in `src/sync/supabaseClient.ts`; nothing else imports them),
    `@expo/vector-icons` (use **Ionicons** only, with glyph names that exist in Ionicons 7, e.g.
@@ -568,10 +569,13 @@ export function showAlert(title: string, message?: string): void;               
 export function confirmAsync(title: string, message?: string, opts?: { confirmText?: string; cancelText?: string; destructive?: boolean }): Promise<boolean>;   // web: window.confirm
 export function chooseAsync<T extends string>(title: string, options: { value: T; label: string; destructive?: boolean }[], message?: string): Promise<T | null>;   // native: Alert with buttons; web: sequential window.confirm fallback is NOT ok → use a prompt listing numbered options
 ```
+### ui/files.ts, ui/receiptNames.ts, ui/useReceiptSource.ts
+`files.ts` is the only file that imports `expo-file-system` (object API: `File`, `Directory`, `Paths`, present in SDK 54 and 58) and `expo-sharing`, both loaded with `import()` on first use. Neither works in the Snack web preview, so every function falls back and never throws (on web they do nothing). `shareTextAsFile(filename, contents, mimeType)` writes the text to the cache folder and opens the share sheet (false when it can't; `shareFile` / `shareCsv` then share the text, the CSV without its BOM). `keepReceiptPhoto(uri)` copies a bill photo into `<documents>/receipts/` and returns `kept://receipts/<name>`; `resolveReceiptUri(uri)` turns a kept uri back into a real file uri (null when it can't); `sweepKeptReceipts(inUse)` deletes kept photos no `receiptUri` refers to (called once from `AppContent` after the saved state loaded, never when the saved data had been unreadable). A `kept://` link is stored in `Expense.receiptUri` instead of an absolute path because the app's folder path can change between app versions on iPhone. `receiptNames.ts` holds the pure parts (scheme, `keptName`, `newKeptFileName`, `unusedKeptNames`, `safeFileName`, `utiFor`; tests in `tests/ui/receiptNames.test.ts`). `useReceiptSource(uri)` returns `{ uri, missing }` for `<Image>`: kept uris are resolved, other uris pass through; `ReceiptThumb` and `ReceiptPhoto` show a muted "Photo not on this phone" box when `missing` or the image fails to load. Photos never leave the phone (`sync/rows.ts` drops `receiptUri`).
+
 ### ui/share.ts
 ```ts
 export async function shareText(message: string, title?: string): Promise<void>;           // RN Share; web: navigator.share → clipboard → alert
-export async function shareCsv(filename: string, csv: string): Promise<void>;               // web: Blob download; native: Share.share({ message: csv, title: filename })
+export async function shareCsv(filename: string, csv: string): Promise<void>;               // web: Blob download; phone: a real file via shareTextAsFile (CSV with BOM), else Share.share of the text
 export async function openUpiPayment(args: { upiId: string; name: string; amount: Minor; currency: CurrencyCode; note: string }): Promise<boolean>;  // Linking upi://pay?pa=&pn=&am=&cu=INR&tn= ; false if cannot open
 ```
 
@@ -631,7 +635,7 @@ OptionPicker of CATEGORIES; category auto-guessed from description until the use
 ItemizedSplit), row "Paid by **you** and split **equally**" with both words tappable
 (→ PaidBy, → SplitOptions), date (DateField), notes, repeat (OptionPicker: never/weekly/
 fortnightly/monthly/yearly), attached receipt thumbnail (from scan). Inline errors from
-`draft.errors`; header Save (disabled when errors) → `addExpense`/`updateExpense` → go back to
+`draft.errors`; header Save (disabled when errors) → the bill photo, if it is not yet kept, is shrunk with `prepareImageForOcr` (under 1 MB, like a scan) and copied with `keepReceiptPhoto` behind a "Saving the photo…" overlay (phones only; a double tap is ignored meanwhile; if either step fails the original link is saved) → `addExpense`/`updateExpense` → go back to
 where the user came from (GroupDetail / FriendDetail / tabs). Cancel asks to discard if dirty.
 
 ### 8.2 Scan bill (`ScanBillScreen`)
@@ -715,7 +719,7 @@ Edge profile). Nothing is installed or written outside the topic folder.
   the app is about 900 KB. Re-run the script after every app change.
 
 Snack dependencies (versions pinned where Snack can't infer them):
-`@react-navigation/native@7.5.0,@react-navigation/native-stack@7.20.0,@react-navigation/bottom-tabs@7.20.0,react-native-screens,react-native-safe-area-context,@react-native-async-storage/async-storage,expo-image-picker,expo-image-manipulator,expo-document-picker,expo-font,@expo/vector-icons,@supabase/supabase-js,react-native-url-polyfill`
+`@react-navigation/native@7.5.0,@react-navigation/native-stack@7.20.0,@react-navigation/bottom-tabs@7.20.0,react-native-screens,react-native-safe-area-context,@react-native-async-storage/async-storage,expo-image-picker,expo-image-manipulator,expo-document-picker,expo-file-system,expo-sharing,expo-font,@expo/vector-icons,@supabase/supabase-js,react-native-url-polyfill`
 
 ### Group themes and the server
 `supabase/setup.sql` keeps group fields in fixed columns and `push_changes` / `share_group` read named keys of the JSON they are given (`x ->> 'name'`, …). The app therefore sends `theme` as one more key of the group object (`PushGroup.theme`, omitted when the group never chose one): a server that has not run `supabase/add_group_theme.sql` ignores it, so pushes are unchanged there and each phone keeps its own theme. After the upgrade `groups.theme` (nullable text, null = never chosen) is written by those functions and read with the other columns (`select *`, Realtime rows). A pulled row without a usable theme never replaces a theme chosen on the phone (`readGroup`); a row with one does. Tests: `tests/sync/engine.test.ts` ('group themes', with `FakeServer({ themeColumn })` and `addThemeColumn()`), `rows.test.ts`, `diff.test.ts`.

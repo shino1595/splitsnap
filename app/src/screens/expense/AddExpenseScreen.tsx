@@ -12,6 +12,7 @@ import { formatDate, todayISO } from '../../lib/dates';
 import { CURRENCIES, currencyDecimals, minorToInputText } from '../../lib/money';
 import { frequencyLabel, RECURRENCE_FREQUENCIES } from '../../lib/recurrence';
 import { defaultSplit, describeSplit } from '../../lib/split';
+import { prepareImageForOcr } from '../../ocr/imagePrep';
 import { useSync } from '../../sync/SyncProvider';
 import { colors, font, radius, spacing, themed } from '../../theme';
 import {
@@ -22,6 +23,9 @@ import {
   confirmAsync,
   Divider,
   EmptyState,
+  isKeptUri,
+  keepReceiptPhoto,
+  LoadingOverlay,
   OptionPicker,
   Screen,
   showAlert,
@@ -112,6 +116,7 @@ export default function AddExpenseScreen({ navigation, route }: Props) {
   const [touched, setTouched] = React.useState<Partial<Record<Field, boolean>>>({});
   const [saveErrors, setSaveErrors] = React.useState<string[]>([]);
   const [categoryManual, setCategoryManual] = React.useState(false);
+  const [keepingPhoto, setKeepingPhoto] = React.useState(false);
   const [picker, setPicker] = React.useState<PickerKind>(null);
   const savingRef = React.useRef(false);
 
@@ -184,7 +189,7 @@ export default function AddExpenseScreen({ navigation, route }: Props) {
     leaveEditor();
   }, [dirty, editing, leaveEditor]);
 
-  const save = React.useCallback(() => {
+  const save = React.useCallback(async () => {
     if (savingRef.current) return;
     const input = toInput();
     if (!input) {
@@ -192,6 +197,20 @@ export default function AddExpenseScreen({ navigation, route }: Props) {
       return;
     }
     savingRef.current = true;
+    // A temporary photo is shrunk like a scan (under 1 MB, so a year of bills stays small) and
+    // copied into the app's own folder. Neither step can fail the save: the link stays as it is.
+    if (input.receiptUri && !isKeptUri(input.receiptUri) && Platform.OS !== 'web') {
+      setKeepingPhoto(true);
+      let source = input.receiptUri;
+      try {
+        source = (await prepareImageForOcr(source)).uri || source;
+      } catch {
+        // The original photo is kept instead.
+      }
+      const kept = await keepReceiptPhoto(source);
+      if (isKeptUri(kept)) input.receiptUri = kept;
+      setKeepingPhoto(false);
+    }
     const result = draft.editingId ? actions.updateExpense(draft.editingId, input) : actions.addExpense(input);
     if (!result.expense || result.errors.length > 0) {
       savingRef.current = false;
@@ -213,7 +232,7 @@ export default function AddExpenseScreen({ navigation, route }: Props) {
               title="Save"
               strong
               dimmed={!canSave}
-              onPress={save}
+              onPress={() => void save()}
               accessibilityHint={canSave ? undefined : 'Shows what is still missing'}
               testID="save-expense"
             />
@@ -499,6 +518,7 @@ export default function AddExpenseScreen({ navigation, route }: Props) {
         selected={repeatChoice}
         onSelect={onRepeat}
       />
+      <LoadingOverlay visible={keepingPhoto} message="Saving the photo…" />
     </Screen>
   );
 }
