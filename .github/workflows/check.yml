@@ -1,0 +1,31 @@
+# Runs the unit tests and the strict type check the same way they run on the developer PC:
+# PowerShell 5.1 scripts that drive headless Microsoft Edge (tools/README.md). A Windows runner
+# has Edge. publish.yml calls this first, so a broken build never reaches the phones; a push to
+# any other branch runs it on its own.
+name: Check SplitSnap (tests and types)
+
+on:
+  workflow_call:
+  workflow_dispatch:
+  push:
+    branches-ignore: [main]
+    paths:
+      - 'app/**'
+      - 'tests/**'
+      - 'tools/**'
+      - '.github/workflows/check.yml'
+
+jobs:
+  check:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unit tests
+        shell: cmd
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tools\run-tests.ps1
+
+      - name: Type check
+        shell: cmd
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tools\typecheck.ps1

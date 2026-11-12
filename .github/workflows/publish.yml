@@ -1,6 +1,7 @@
 # Publishes SplitSnap (app/) with EAS Update on every push to main that changes the app, so
 # the iPhone's Expo Go (SDK 58) gets the new version. Runs on GitHub's servers; needs the repo
 # secret EXPO_TOKEN. See roadmap/04_Publish_With_EAS_Update.md.
+# The unit tests and the type check (check.yml) run first; nothing is published if either fails.
 name: Publish SplitSnap (EAS Update)
 
 on:
@@ -12,7 +13,11 @@ on:
       - '.github/workflows/publish.yml'
 
 jobs:
+  check:
+    uses: ./.github/workflows/check.yml
+
   update:
+    needs: check
     runs-on: ubuntu-latest
     defaults:
       run:
