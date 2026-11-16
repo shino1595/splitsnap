@@ -12,6 +12,7 @@ import {
   cleanDisplayName,
   displayNameDraft,
   displayNameProblem,
+  groupSyncLine,
   formatJoinCode,
   hasLeft,
   inviteMessage,
@@ -306,5 +307,42 @@ describe('syncErrorText', () => {
     expect(syncErrorText(undefined, FALLBACK)).toBe(FALLBACK);
     expect(syncErrorText('boom', FALLBACK)).toBe(FALLBACK);
     expect(syncErrorText({ kind: 'weird', message: 'x' }, FALLBACK)).toBe(FALLBACK);
+  });
+});
+
+describe('groupSyncLine', () => {
+  const now = new Date('2026-11-01T12:10:00.000Z');
+  const fiveAgo = '2026-11-01T12:05:00.000Z';
+  const base = { status: 'live' as const, pending: 0, lastSyncedAt: fiveAgo, lastError: null, now };
+
+  it('offline: waiting changes, last sync, or nothing', () => {
+    expect(groupSyncLine({ ...base, status: 'offline', pending: 2 })).toEqual({ text: 'Offline · 2 changes waiting to send', tone: 'offline', icon: 'cloud-offline-outline' });
+    expect(groupSyncLine({ ...base, status: 'offline', pending: 1 }).text).toBe('Offline · 1 change waiting to send');
+    expect(groupSyncLine({ ...base, status: 'offline' }).text).toBe('Offline · last synced 5 min ago');
+    expect(groupSyncLine({ ...base, status: 'offline', lastSyncedAt: null }).text).toBe('Offline');
+    expect(groupSyncLine({ ...base, status: 'offline', lastError: 'x' }).tone).toBe('offline');
+  });
+
+  it('a problem shows as an error unless offline', () => {
+    expect(groupSyncLine({ ...base, lastError: 'x' })).toEqual({ text: 'Sync problem · tap to try again', tone: 'error', icon: 'alert-circle-outline' });
+    expect(groupSyncLine({ ...base, status: 'connecting', lastError: 'x' }).tone).toBe('error');
+  });
+
+  it('connecting', () => {
+    expect(groupSyncLine({ ...base, status: 'connecting', pending: 2 })).toEqual({ text: 'Connecting · 2 changes waiting', tone: 'busy', icon: 'cloud-outline' });
+    expect(groupSyncLine({ ...base, status: 'connecting' }).text).toBe('Connecting…');
+  });
+
+  it('live: sending, up to date with or without a time', () => {
+    expect(groupSyncLine({ ...base, pending: 2 })).toEqual({ text: 'Sending 2 changes…', tone: 'busy', icon: 'cloud-upload-outline' });
+    expect(groupSyncLine({ ...base, pending: 1 }).text).toBe('Sending 1 change…');
+    expect(groupSyncLine(base)).toEqual({ text: 'Up to date · synced 5 min ago', tone: 'ok', icon: 'cloud-done-outline' });
+    expect(groupSyncLine({ ...base, lastSyncedAt: '2026-11-01T12:09:50.000Z' }).text).toBe('Up to date · synced just now');
+    expect(groupSyncLine({ ...base, lastSyncedAt: null }).text).toBe('Up to date');
+  });
+
+  it('idle and off are not syncing', () => {
+    expect(groupSyncLine({ ...base, status: 'idle' })).toEqual({ text: 'Not syncing', tone: 'busy', icon: 'cloud-outline' });
+    expect(groupSyncLine({ ...base, status: 'off' }).text).toBe('Not syncing');
   });
 });

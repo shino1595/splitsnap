@@ -125,6 +125,13 @@ fall back to the neutral summary.
   that is now you (`myMemberId`) → full pull → the group appears with your history mapped to
   "You". Someone who was in the group before always gets their old row back.
 - **Leave group:** `leave_group`; the local copy stays as an ordinary (unshared) group.
+- **Sync state in a group:** `SyncApi.lastSyncedAt` (when the last pull or push succeeded in this
+  session; null before the first; shown to the minute, so screens re-render at most once a minute
+  for it) and `SyncApi.pendingIn(groupId)` (outbox entries of that group). A shared group's screen
+  shows them as one tappable line under 'Shared · 2 of 4 on SplitSnap' (`groupSyncLine`, testID
+  `group-sync-line`; tap = sync now). Other members' new activity entries are listed in
+  `AppState.unseenActivityIds` and mark the Activity tab with a dot until it is opened; the reducer
+  action `activity/seen` clears them and queues nothing for sending.
 - **New phone or reinstalled Expo Go** (a new anonymous user): the project owner deletes the old
   user under Authentication → Users, which frees the member row; then "That's me" works again.
 

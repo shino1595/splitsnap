@@ -242,7 +242,9 @@ To start over, use **Account → Settings**:
   project owner deletes their old user in Supabase (Authentication → Users); they then join again
   with the code and tap **That's me**.
 - **Changes show up while the app is open.** There are no notifications (Expo Go has none). A
-  phone that was closed catches up when it next opens.
+  phone that was closed catches up when it next opens. A shared group's screen says whether it is
+  up to date, offline or still sending (tap the line to sync now), and the Activity tab shows a dot
+  when other members changed something.
 - Everyone in a shared group can add, change and delete its expenses and payments. If two people
   change the same expense at once, the later save wins. Nobody can remove a member: each person
   leaves from their own phone (**Leave group**). Deleting a shared group deletes it for everyone.

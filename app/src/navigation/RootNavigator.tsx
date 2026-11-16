@@ -12,6 +12,8 @@ import {
   BottomTabNavigationOptions,
   createBottomTabNavigator,
 } from '@react-navigation/bottom-tabs';
+import { useAppState } from '../store/AppStore';
+import { unseenActivityCount } from '../store/selectors';
 import { colors, font, themed } from '../theme';
 import { HEADER_FONT_SIZE, Icon, IconButton, TITLE_FONT_FAMILY, TITLE_LETTER_SPACING, shadowStyle, useTitleFont } from '../ui';
 import { TAB_BAR_HEIGHT } from '../ui/floating';
@@ -91,8 +93,27 @@ function tabOptions(name: keyof typeof TAB_ICONS, title: string): BottomTabNavig
   const [outline, filled] = TAB_ICONS[name];
   return {
     title,
-    tabBarIcon: ({ color, size, focused }) => <Icon name={focused ? filled : outline} size={size} color={color} />,
+    tabBarIcon: ({ color, size, focused }) =>
+      name === 'Activity' ? (
+        <ActivityTabIcon name={focused ? filled : outline} size={size} color={color} />
+      ) : (
+        <Icon name={focused ? filled : outline} size={size} color={color} />
+      ),
   };
+}
+
+/** The Activity icon with a dot while other members' changes wait to be seen. Reads the state itself, so the navigator doesn't. */
+function ActivityTabIcon({ name, size, color }: { name: string; size: number; color: string }) {
+  const state = useAppState();
+  const count = unseenActivityCount(state);
+  return (
+    <View>
+      <Icon name={name} size={size} color={color} />
+      {count > 0 ? (
+        <View accessible accessibilityLabel={`Activity, ${count} new`} style={styles.activityDot} testID="tab-activity-dot" />
+      ) : null}
+    </View>
+  );
 }
 
 /** Never shown: pressing the centre tab opens AddExpense instead (see the tabPress listener). */
@@ -242,4 +263,15 @@ const styles = themed((colors) => StyleSheet.create({
     ...shadowStyle(2),
   },
   addButtonPressed: { backgroundColor: colors.primaryFillPressed },
+  activityDot: {
+    position: 'absolute',
+    top: -2,
+    right: -6,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.owe,
+    borderWidth: 2,
+    borderColor: colors.card,
+  },
 }));

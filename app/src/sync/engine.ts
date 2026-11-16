@@ -70,6 +70,8 @@ export interface SyncEngineOptions {
   /** Called when anything getApi() shows has changed. */
   onChange?: () => void;
   timers?: SyncTimers;
+  /** The clock, for lastSyncedAt. Defaults to the real time. */
+  now?: () => Date;
   /** Defaults to isSyncConfigured(). false = status 'off', and the backend is never called. */
   configured?: boolean;
   /** Problems nobody sees otherwise (rows skipped, changes refused). */
@@ -141,6 +143,7 @@ export class SyncEngine {
   private readonly configured: boolean;
   private readonly onChange: () => void;
   private readonly log: (message: string) => void;
+  private readonly now: () => Date;
 
   private sync: SyncState = EMPTY_SYNC_STATE;
   private running = false;
@@ -159,6 +162,7 @@ export class SyncEngine {
   /** The last request failed for lack of a connection. */
   private offline = false;
   private lastError: string | null = null;
+  private lastSynced: ISODateTime | null = null;
 
   private flushTimer: unknown = null;
   private retryTimer: unknown = null;
@@ -185,6 +189,7 @@ export class SyncEngine {
     this.configured = options.configured !== undefined ? options.configured : isSyncConfigured();
     this.onChange = options.onChange || noop;
     this.log = options.log || noop;
+    this.now = options.now || (() => new Date());
   }
 
   // ---------- Lifecycle ----------
@@ -229,6 +234,8 @@ export class SyncEngine {
       this.api = {
         status: this.status(),
         pending: this.sync.outbox.length,
+        lastSyncedAt: this.lastSynced,
+        pendingIn: this.pendingIn,
         lastError: this.lastError,
         displayName: this.sync.displayName,
         setDisplayName: this.setDisplayName,
@@ -313,7 +320,7 @@ export class SyncEngine {
       const g = this.sync.groups[id];
       return [id, g.myMemberId, g.joinCode, g.joinEnabled, g.members];
     });
-    const key = JSON.stringify([this.status(), this.sync.outbox.length, this.lastError, this.sync.displayName, groups]);
+    const key = JSON.stringify([this.status(), this.sync.outbox.length, this.lastError, this.sync.displayName, groups, this.lastSynced ? this.lastSynced.slice(0, 16) : null]);
     if (key === this.notified) return;
     this.notified = key;
     if (this.running) this.onChange();
@@ -477,6 +484,8 @@ export class SyncEngine {
       const written = await this.backend.push(built.payload);
       this.retryDelay = 0;
       this.setOffline(false);
+      this.lastSynced = this.now().toISOString();
+      this.notify();
       this.removeKeys(built.sent, this.touched);
       this.logSkipped(built.payload, written);
       return 'sent';
@@ -622,6 +631,8 @@ export class SyncEngine {
       throw error;
     }
     this.setOffline(false);
+    this.lastSynced = this.now().toISOString();
+    this.notify();
     await this.applyRows(batch, true);
   }
 
@@ -753,7 +764,9 @@ export class SyncEngine {
   private readonly shared = (groupId: ID): SharedGroupInfo | null =>
     has(this.sync.groups, groupId) ? this.sync.groups[groupId] : null;
 
-  private readonly isOnSplitSnap = (groupId: ID, personId: ID): boolean => {
+  private readonly pendingIn = (groupId: ID): number => this.sync.outbox.filter((k) => k.groupId === groupId).length;
+
+  private readonly isOnSplitSnap =(groupId: ID, personId: ID): boolean => {
     if (personId === ME_ID) return true;
     const info = this.shared(groupId);
     if (!info || personId === info.myMemberId || !has(info.members, personId)) return false;

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import type { RootScreenProps } from '../../navigation/types';
 import { useActions, useAppState } from '../../store/AppStore';
 import { useDraft } from '../../store/draft';
@@ -16,8 +16,8 @@ import { todayISO } from '../../lib/dates';
 import { ME_ID } from '../../types';
 import { useSync } from '../../sync/SyncProvider';
 import { colors, spacing, themed } from '../../theme';
-import { Banner, Chip, EmptyState, Fab, Icon, IconButton, Screen, shareCsv, shareText, showAlert } from '../../ui';
-import { displayNameDraft, hasLeft, sharedSummary } from '../sharing/sharingLogic';
+import { AppText, Banner, Chip, EmptyState, Fab, Icon, IconButton, Screen, shareCsv, shareText, showAlert, useNow } from '../../ui';
+import { displayNameDraft, groupSyncLine, hasLeft, sharedSummary } from '../sharing/sharingLogic';
 import { GroupHeader } from './components/GroupHeader';
 import type { GroupAction } from './components/GroupHeader';
 import { MissingGroup } from './components/MissingGroup';
@@ -33,6 +33,7 @@ export default function GroupDetailScreen({ navigation, route }: Props) {
   const actions = useActions();
   const draft = useDraft();
   const sync = useSync();
+  const now = useNow();
   const group = state.groups[groupId];
 
   const data = React.useMemo(() => {
@@ -105,6 +106,12 @@ export default function GroupDetailScreen({ navigation, route }: Props) {
   // Members who left stay in the group (old expenses name them) but count as neither joined nor invited.
   const leftCount = group.memberIds.filter((id) => hasLeft(sharedInfo, id)).length;
   const summary = sharedSummary(onSplitSnap, group.memberIds.length, leftCount);
+  const syncLine = shared
+    ? groupSyncLine({ status: sync.status, pending: sync.pendingIn(groupId), lastSyncedAt: sync.lastSyncedAt, lastError: sync.lastError, now })
+    : null;
+  const syncLineColor = syncLine
+    ? syncLine.tone === 'offline' ? colors.warning : syncLine.tone === 'error' ? colors.danger : colors.textMuted
+    : colors.textMuted;
 
   const shareSummary = () => {
     const myName = displayNameDraft(sync.displayName, state.people[ME_ID]?.name);
@@ -150,6 +157,22 @@ export default function GroupDetailScreen({ navigation, route }: Props) {
           style={styles.sharedChip}
           testID="group-shared"
         />
+      ) : null}
+
+      {syncLine ? (
+        <Pressable
+          onPress={() => sync.syncNow().catch(() => undefined)}
+          accessibilityRole="button"
+          accessibilityLabel={`${syncLine.text}. Sync now`}
+          hitSlop={8}
+          style={({ pressed }) => [styles.syncLine, pressed && styles.syncLinePressed]}
+          testID="group-sync-line"
+        >
+          <Icon name={syncLine.icon} size={14} color={syncLineColor} />
+          <AppText variant="caption" color={syncLineColor} style={styles.syncText}>
+            {syncLine.text}
+          </AppText>
+        </Pressable>
       ) : null}
 
       {group.archived ? (
@@ -203,6 +226,9 @@ const styles = themed(() => StyleSheet.create({
   banner: { marginTop: spacing.md },
   empty: { paddingVertical: spacing.xxl },
   sharedChip: { marginTop: spacing.md },
+  syncLine: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs + 2, minHeight: 32, marginTop: spacing.xs },
+  syncLinePressed: { opacity: 0.6 },
+  syncText: { flexShrink: 1 },
   // 3 px chip inset + 7 lines the icon up with the 10 px padding on the right.
   chipIcon: { marginLeft: spacing.sm - 1 },
 }));

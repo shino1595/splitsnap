@@ -113,3 +113,18 @@ describe('parsePersistedState', () => {
     for (const g of Object.values(parsed!.groups)) expect(g.theme).toBeUndefined();
   });
 });
+
+describe('unseenActivityIds in a saved state', () => {
+  it('is kept when it is a list of strings', () => {
+    const result = readSavedState(JSON.stringify({ ...demo(), unseenActivityIds: ['a', 'b'] }));
+    expect(result.kind === 'ok' && result.state.unseenActivityIds).toEqual(['a', 'b']);
+  });
+
+  it('is dropped, without failing the load, when it is not a list of strings', () => {
+    for (const bad of ['x', 5, { a: 1 }, [1, 2], ['a', null]]) {
+      const result = readSavedState(JSON.stringify({ ...demo(), unseenActivityIds: bad }));
+      expect(result.kind).toBe('ok');
+      if (result.kind === 'ok') expect('unseenActivityIds' in result.state).toBe(false);
+    }
+  });
+});

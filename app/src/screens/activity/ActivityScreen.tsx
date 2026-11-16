@@ -1,11 +1,12 @@
 import * as React from 'react';
 import { Pressable, SectionList, StyleSheet, View } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
-import type { Activity } from '../../types';
+import { useIsFocused } from '@react-navigation/native';
+import type { Activity, ID } from '../../types';
 import type { TabScreenProps } from '../../navigation/types';
-import { useAppState } from '../../store/AppStore';
+import { useActions, useAppState } from '../../store/AppStore';
+import { unseenActivityIds } from '../../store/selectors';
 import { colors, radius, spacing, themed } from '../../theme';
-import { AppText, EmptyState, Icon, IconButton, Screen, SectionHeader, toneColor } from '../../ui';
+import { AppText, EmptyState, Icon, IconButton, Screen, SectionHeader, toneColor, useNow } from '../../ui';
 import {
   activityImpact,
   activityTarget,
@@ -18,22 +19,10 @@ import type { ActivitySection, ActivityTarget, Impact } from './activityFeed';
 
 const ICON_SIZE = 40;
 
-/** Current time, refreshed every minute and whenever the tab gains focus (for '5 min ago'). */
-function useNow(): Date {
-  const [tick, setTick] = React.useState(0);
-  React.useEffect(() => {
-    const timer = setInterval(() => setTick((t) => t + 1), 60 * 1000);
-    return () => clearInterval(timer);
-  }, []);
-  useFocusEffect(
-    React.useCallback(() => {
-      setTick((t) => t + 1);
-    }, []),
-  );
-  return React.useMemo(() => new Date(), [tick]);
-}
+const NO_IDS: ReadonlySet<ID> = new Set<ID>();
 
 interface RowProps {
+  isNew: boolean;
   entry: Activity;
   impact: Impact | null;
   target: ActivityTarget | null;
@@ -43,10 +32,10 @@ interface RowProps {
   onOpen: (target: ActivityTarget) => void;
 }
 
-const ActivityRow = React.memo(function ActivityRow({ entry, impact, target, time, first, last, onOpen }: RowProps) {
+const ActivityRow = React.memo(function ActivityRow({ entry, impact, target, time, first, last, onOpen, isNew }: RowProps) {
   const visual = activityVisual(entry.type);
   const parts = emphasizeQuotes(entry.summary);
-  const label = [entry.summary, impact?.text, time].filter(Boolean).join('. ');
+  const label = [entry.summary, impact?.text, time, isNew ? 'New' : ''].filter(Boolean).join('. ');
 
   return (
     <Pressable
@@ -87,10 +76,20 @@ const ActivityRow = React.memo(function ActivityRow({ entry, impact, target, tim
             {impact.text}
           </AppText>
         ) : null}
-        {time ? (
-          <AppText variant="caption" color={colors.textFaint} style={styles.time}>
-            {time}
-          </AppText>
+        {time || isNew ? (
+          <View style={styles.timeRow}>
+            {isNew ? <View style={styles.newDot} /> : null}
+            {isNew ? (
+              <AppText variant="caption" weight="semibold" color={colors.owe}>
+                New
+              </AppText>
+            ) : null}
+            {time ? (
+              <AppText variant="caption" color={colors.textFaint}>
+                {time}
+              </AppText>
+            ) : null}
+          </View>
         ) : null}
       </View>
       {target ? <Icon name="chevron-forward" size={18} color={colors.textFaint} style={styles.chevron} /> : null}
@@ -108,7 +107,22 @@ function RowSeparator() {
 
 export default function ActivityScreen({ navigation }: TabScreenProps<'Activity'>) {
   const state = useAppState();
+  const actions = useActions();
   const now = useNow();
+  const focused = useIsFocused();
+  const unseen = React.useMemo(() => unseenActivityIds(state), [state.unseenActivityIds, state.activity]);
+  const [fresh, setFresh] = React.useState<ReadonlySet<ID>>(NO_IDS);
+
+  // Entries that arrived since the last visit stay marked while the tab is open, and the dot goes away.
+  React.useEffect(() => {
+    if (!focused) {
+      setFresh((prev) => (prev.size > 0 ? NO_IDS : prev));
+      return;
+    }
+    if (unseen.length === 0) return;
+    setFresh((prev) => new Set<ID>([...Array.from(prev), ...unseen]));
+    actions.markActivitySeen();
+  }, [focused, unseen, actions]);
 
   React.useLayoutEffect(() => {
     navigation.setOptions({
@@ -169,6 +183,7 @@ export default function ActivityScreen({ navigation }: TabScreenProps<'Activity'
             first={index === 0}
             last={index === section.data.length - 1}
             onOpen={open}
+            isNew={fresh.has(item.id)}
           />
         )}
       />
@@ -203,7 +218,8 @@ const styles = themed((colors) => StyleSheet.create({
   rowBody: { flex: 1, minWidth: 0 },
   summary: { lineHeight: 21 },
   impact: { marginTop: spacing.xxs },
-  time: { marginTop: spacing.xxs },
+  timeRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs + 2, marginTop: spacing.xxs },
+  newDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.owe },
   chevron: { alignSelf: 'center' },
   separatorWrap: { marginHorizontal: spacing.lg, backgroundColor: colors.card },
   separator: {

@@ -267,6 +267,10 @@ export interface SyncApi {
   status: SyncStatus;
   /** Changes waiting to be sent. */
   pending: number;
+  /** When the last pull or push succeeded in this session; null before the first. */
+  lastSyncedAt: ISODateTime | null;
+  /** Changes waiting to be sent for one group. */
+  pendingIn(groupId: ID): number;
   /** Last problem worth showing (e.g. "You are no longer in Goa Trip"), or null. */
   lastError: string | null;
   /** Your name as other members see it (null until set). */

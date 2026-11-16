@@ -56,6 +56,14 @@ describe('diffShared: nothing to send', () => {
     expect(step(s, { type: 'person/update', id: A, patch: { name: 'Aarav' }, ...stamp() }).keys).toEqual([]);
   });
 
+  it('queues nothing when the Activity tab clears its unseen list', () => {
+    const dinner = withDinner();
+    const s = { ...dinner, unseenActivityIds: [dinner.activity[0].id] };
+    const { next, keys } = step(s, { type: 'activity/seen' });
+    expect(next.unseenActivityIds).toBeUndefined();
+    expect(keys).toEqual([]);
+  });
+
   it('ignores groups that are not shared and expenses outside groups', () => {
     const s = base();
     expect(step(s, { type: 'group/update', id: FLAT, patch: { name: 'Flat 2B' }, ...stamp() }).keys).toEqual([]);

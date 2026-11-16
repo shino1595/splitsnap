@@ -49,6 +49,8 @@ export interface StoreActions {
   deletePayment(id: ID): void;
   /** Brings a deleted payment back (the Undo bar); no-op for an unknown or live one. */
   restorePayment(id: ID): void;
+  /** The Activity tab was looked at: clears the unseen-changes dot. */
+  markActivitySeen(): void;
   updateSettings(patch: Partial<Settings>): void;
   /** Demo data again; your profile, the OCR key and engine are kept. */
   resetToDemo(): void;
@@ -345,6 +347,10 @@ export function AppStoreProvider(props: { children: React.ReactNode }): React.JS
 
       restorePayment(id) {
         dispatch({ type: 'payment/restore', id, ...stamp() });
+      },
+
+      markActivitySeen() {
+        dispatch({ type: 'activity/seen' });
       },
 
       updateSettings(patch) {

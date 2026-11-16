@@ -39,6 +39,7 @@ import type { LocalBatch } from '../sync/types';
 
 /** Oldest entries beyond this are dropped so the saved state stays small. */
 export const MAX_ACTIVITY = 500;
+const MAX_UNSEEN = 200;
 
 export interface FriendInput {
   name: string;
@@ -99,7 +100,9 @@ export type AppAction =
    *  sharedGroupIds: groups shared on this phone, where only the expense's creator makes copies. */
   | { type: 'recurring/process'; today: ISODate; at: ISODateTime; idBase: string; sharedGroupIds?: ID[] }
   /** Changes from a shared group's server (ids already local). Logs no activity of its own. */
-  | { type: 'sync/applyRemote'; batch: LocalBatch; at: ISODateTime };
+  | { type: 'sync/applyRemote'; batch: LocalBatch; at: ISODateTime }
+  /** The Activity tab was looked at: forget which entries were new. */
+  | { type: 'activity/seen' };
 
 // ---------- Small helpers ----------
 
@@ -505,6 +508,11 @@ export function applyRemoteBatch(state: AppState, batch: LocalBatch, at: ISODate
     // Entries older than everything the cap keeps change nothing.
     const before = next.activity;
     if (activity.some((entry, k) => entry !== before[k])) next = { ...next, activity };
+    const kept = new Set(activity.map((a) => a.id));
+    const fresh = incoming.filter((a) => a.actorId !== ME_ID && kept.has(a.id)).map((a) => a.id);
+    if (fresh.length > 0) {
+      next = { ...next, unseenActivityIds: [...fresh, ...(next.unseenActivityIds || [])].slice(0, MAX_UNSEEN) };
+    }
   }
   return next;
 }
@@ -800,6 +808,11 @@ export function appReducer(state: AppState, action: AppAction): AppState {
 
     case 'sync/applyRemote':
       return applyRemoteBatch(state, action.batch, action.at);
+    case 'activity/seen': {
+      if (!state.unseenActivityIds || state.unseenActivityIds.length === 0) return state;
+      const { unseenActivityIds: _seen, ...rest } = state;
+      return rest;
+    }
 
     default:
       return state;

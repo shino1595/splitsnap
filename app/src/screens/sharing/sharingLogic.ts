@@ -1,6 +1,7 @@
 // Pure helpers for the shared-group screens: join codes, the invite message, member badges,
 // display names, the sync status line and friendly error texts (docs/SYNC_DESIGN.md §7).
-import type { ID } from '../../types';
+import type { ID, ISODateTime } from '../../types';
+import { relativeTime } from '../../lib/dates';
 import type { GroupPreview, SharedGroupInfo, SyncStatus } from '../../sync/types';
 import { ADD_GROUP_TITLE, JOIN_GROUP_TITLE } from '../groups/addGroupMenu';
 
@@ -137,6 +138,39 @@ export function syncStatusText(status: SyncStatus, pending: number): string {
     case 'offline':
       return pending > 0 ? `Offline: ${waiting} waiting` : 'Offline: nothing waiting';
   }
+}
+
+export interface GroupSyncLine {
+  text: string;
+  tone: 'ok' | 'busy' | 'offline' | 'error';
+  /** An Ionicons glyph name. */
+  icon: string;
+}
+
+/** The line under a shared group's title; `pending` is this group's own count. */
+export function groupSyncLine(args: {
+  status: SyncStatus;
+  pending: number;
+  lastSyncedAt: ISODateTime | null;
+  lastError: string | null;
+  now: Date;
+}): GroupSyncLine {
+  const { status, pending, lastSyncedAt, lastError, now } = args;
+  const waiting = plural(pending, 'change', 'changes');
+  const ago = lastSyncedAt ? relativeTime(lastSyncedAt, now) : null;
+  if (status === 'offline') {
+    const text = pending > 0 ? `Offline · ${waiting} waiting to send` : ago ? `Offline · last synced ${ago}` : 'Offline';
+    return { text, tone: 'offline', icon: 'cloud-offline-outline' };
+  }
+  if (lastError) return { text: 'Sync problem · tap to try again', tone: 'error', icon: 'alert-circle-outline' };
+  if (status === 'connecting') {
+    return { text: pending > 0 ? `Connecting · ${waiting} waiting` : 'Connecting…', tone: 'busy', icon: 'cloud-outline' };
+  }
+  if (status === 'live') {
+    if (pending > 0) return { text: `Sending ${waiting}…`, tone: 'busy', icon: 'cloud-upload-outline' };
+    return { text: ago ? `Up to date · synced ${ago}` : 'Up to date', tone: 'ok', icon: 'cloud-done-outline' };
+  }
+  return { text: 'Not syncing', tone: 'busy', icon: 'cloud-outline' };
 }
 
 export interface JoinChoices {

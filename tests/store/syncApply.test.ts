@@ -2,6 +2,7 @@ import { ME_ID } from '../../app/src/types';
 import type { Activity, AppState, Comment, Expense, Group, Payment } from '../../app/src/types';
 import type { LocalBatch } from '../../app/src/sync/types';
 import { MAX_ACTIVITY, appReducer } from '../../app/src/store/reducer';
+import { unseenActivityCount, unseenActivityIds } from '../../app/src/store/selectors';
 import { rewordRemoteActivity } from '../../app/src/store/activityText';
 import { A, B, C, TRIP, T0, equalExpense, makeState, payment, run, stamp } from './fixtures';
 
@@ -301,5 +302,54 @@ describe('rewordRemoteActivity', () => {
     expect(say({ type: 'member_added', groupId: 'g_gone', personId: D })).toBe('neutral');
     expect(say({ type: 'group_created', groupId: 'g_gone' })).toBe('neutral');
     expect(say({ actorId: 'u_ghost', expenseId: 'e1' })).toBe('neutral');
+  });
+});
+
+describe('unseen activity from other members', () => {
+  it('marks new entries by others as unseen, newest first, and skips your own and known ones', () => {
+    const s = makeState();
+    const next = apply(s, {
+      activity: [
+        entry('r_old', { at: '2026-10-05T07:00:00.000Z' }),
+        entry('r_mine', { actorId: ME_ID, at: '2026-10-05T07:30:00.000Z' }),
+        entry('r_new', { actorId: B, at: '2026-10-05T07:45:00.000Z' }),
+      ],
+    });
+    expect(next.unseenActivityIds).toEqual(['r_new', 'r_old']);
+
+    const again = apply(next, { activity: [entry('r_old', {}), entry('r_newer', { actorId: C, at: '2026-10-05T07:59:00.000Z' })] });
+    expect(again.unseenActivityIds).toEqual(['r_newer', 'r_new', 'r_old']);
+    expect(unseenActivityIds(again)).toEqual(['r_newer', 'r_new', 'r_old']);
+    expect(unseenActivityCount(again)).toBe(3);
+  });
+
+  it('leaves the field alone for entries by you only', () => {
+    const next = apply(makeState(), { activity: [entry('r_mine', { actorId: ME_ID })] });
+    expect(next.unseenActivityIds).toBeUndefined();
+  });
+
+  it('keeps at most 200 ids', () => {
+    const many = Array.from({ length: 250 }, (_, i) => entry(`r_${i}`, { at: new Date(Date.UTC(2026, 9, 5, 0, 0, i)).toISOString() }));
+    const next = apply(makeState(), { activity: many });
+    expect(next.unseenActivityIds).toHaveLength(200);
+    expect(next.unseenActivityIds![0]).toBe('r_249');
+  });
+
+  it("'activity/seen' clears the list and is a no-op when it is empty or missing", () => {
+    const s = apply(makeState(), { activity: [entry('r_new', {})] });
+    const seen = appReducer(s, { type: 'activity/seen' });
+    expect(seen.unseenActivityIds).toBeUndefined();
+    expect(seen.activity).toBe(s.activity);
+    expect(appReducer(seen, { type: 'activity/seen' })).toBe(seen);
+    const empty = { ...seen, unseenActivityIds: [] };
+    expect(appReducer(empty, { type: 'activity/seen' })).toBe(empty);
+  });
+
+  it('the selectors drop ids that are no longer in the activity list', () => {
+    const s = apply(makeState(), { activity: [entry('r_a', {}), entry('r_b', { at: '2026-10-05T07:00:00.000Z' })] });
+    const trimmed: AppState = { ...s, activity: s.activity.filter((a) => a.id !== 'r_b') };
+    expect(unseenActivityIds(trimmed)).toEqual(['r_a']);
+    expect(unseenActivityCount(trimmed)).toBe(1);
+    expect(unseenActivityIds(makeState())).toEqual([]);
   });
 });

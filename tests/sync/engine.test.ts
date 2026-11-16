@@ -21,6 +21,8 @@ const CHIRAG = 'per_chirag';
 const T0 = '2026-10-01T09:00:00.000Z';
 
 let tick = 0;
+/** The engines' clock (SyncEngineOptions.now). */
+let clockMs = Date.UTC(2026, 10, 1, 12, 0, 0);
 
 /** A later timestamp for every action. */
 function nextAt(): string {
@@ -123,6 +125,7 @@ function world(server: FakeServer = new FakeServer()) {
       storage: p.storage,
       timers: p.timers,
       configured: true,
+      now: () => new Date(clockMs),
       log: (message) => p.logs.push(message),
     });
 
@@ -1009,5 +1012,54 @@ describe('SyncEngine: group themes', () => {
       expect(serverTheme(server)).toBe('fitness');
       expect(aarav.state().groups[GOA].theme).toBe('fitness');
     });
+  });
+});
+
+describe('SyncEngine: lastSyncedAt and pendingIn', () => {
+  const iso = (ms: number): string => new Date(ms).toISOString();
+
+  it('is null before any sync', async () => {
+    const w = world();
+    const aarav = await w.phone('aarav', aaravState());
+    expect(aarav.api().lastSyncedAt).toBeNull();
+    expect(aarav.api().pendingIn(GOA)).toBe(0);
+  });
+
+  it('is set after a pull and after a push, and kept when a push fails offline', async () => {
+    clockMs = Date.UTC(2026, 10, 1, 12, 0, 0);
+    const { w, aarav, bhavna } = await sharedPair();
+    expect(bhavna.api().lastSyncedAt).toBe(iso(clockMs)); // the pull that joining makes
+
+    clockMs += 5 * 60 * 1000;
+    await bhavna.api().syncNow(); // nothing to send: a pull only
+    expect(bhavna.api().lastSyncedAt).toBe(iso(clockMs));
+
+    clockMs += 5 * 60 * 1000;
+    bhavna.store.dispatch({ type: 'expense/add', id: 'exp_tea2', input: expenseInput({ description: 'Tea', total: 1000, payer: ME_ID, ids: [ME_ID, aarav.myMemberId()] }), ...bhavna.stamp() });
+    await w.settle();
+    expect(bhavna.api().pending).toBe(0);
+    expect(bhavna.api().lastSyncedAt).toBe(iso(clockMs)); // the push
+
+    const synced = iso(clockMs);
+    w.server.setOnline('bhavna', false);
+    clockMs += 5 * 60 * 1000;
+    bhavna.store.dispatch({ type: 'expense/add', id: 'exp_tea3', input: expenseInput({ description: 'More tea', total: 1000, payer: ME_ID, ids: [ME_ID, aarav.myMemberId()] }), ...bhavna.stamp() });
+    await w.settle();
+    expect(bhavna.api().pending).toBe(2);
+    expect(bhavna.api().lastSyncedAt).toBe(synced);
+  });
+
+  it('counts only the changes of that group', async () => {
+    const { w, aarav, bhavna } = await sharedPair();
+    await bhavna.api().shareGroup('grp_flat');
+    await w.settle();
+    w.server.setOnline('bhavna', false);
+    bhavna.store.dispatch({ type: 'expense/add', id: 'exp_scooter2', input: expenseInput({ description: 'Scooter', total: 30000, payer: ME_ID, ids: [ME_ID, aarav.myMemberId()] }), ...bhavna.stamp() });
+    bhavna.store.dispatch({ type: 'expense/add', id: 'exp_rent2', input: expenseInput({ description: 'Rent', total: 50000, payer: ME_ID, ids: [ME_ID, 'per_diya'], groupId: 'grp_flat' }), ...bhavna.stamp() });
+    await w.settle();
+    expect(bhavna.api().pendingIn(GOA)).toBe(2);
+    expect(bhavna.api().pendingIn('grp_flat')).toBe(2);
+    expect(bhavna.api().pendingIn('grp_unknown')).toBe(0);
+    expect(bhavna.api().pending).toBe(4);
   });
 });

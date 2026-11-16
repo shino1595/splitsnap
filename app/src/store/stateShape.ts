@@ -144,6 +144,11 @@ export function readSavedValue(
   const state: AppState = current;
   // Fill settings added after the state was saved.
   const result: AppState = { ...state, groups: withKnownThemes(state.groups), settings: { ...DEFAULT_SETTINGS, ...state.settings } };
+  // Only a convenience: never fail the load for it.
+  const unseen: unknown = result.unseenActivityIds;
+  if (unseen !== undefined && !(Array.isArray(unseen) && unseen.every((id) => typeof id === 'string'))) {
+    delete result.unseenActivityIds;
+  }
   return version < target ? { kind: 'ok', state: result, upgradedFrom: version } : { kind: 'ok', state: result };
 }
 

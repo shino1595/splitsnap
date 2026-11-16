@@ -471,3 +471,17 @@ export function canDeleteGroup(state: AppState, groupId: ID): GuardResult {
   }
   return { ok: true };
 }
+
+// ---------- Unseen changes from other members ----------
+
+/** Ids from state.unseenActivityIds whose entry is still in the activity list. */
+export function unseenActivityIds(state: AppState): ID[] {
+  const ids = state.unseenActivityIds;
+  if (!ids || ids.length === 0) return [];
+  const present = new Set(state.activity.map((a) => a.id));
+  return ids.filter((id) => present.has(id));
+}
+
+export function unseenActivityCount(state: AppState): number {
+  return unseenActivityIds(state).length;
+}

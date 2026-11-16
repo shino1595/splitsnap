@@ -274,6 +274,8 @@ export interface AppState {
   payments: Record<ID, Payment>;
   /** Newest first. */
   activity: Activity[];
+  /** Ids of activity entries that arrived from other members through sync and have not been seen on the Activity tab yet. Newest first, at most 200. */
+  unseenActivityIds?: ID[];
   settings: Settings;
 }
 

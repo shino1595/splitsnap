@@ -16,6 +16,8 @@ const notReady = (): Promise<never> =>
 const WAITING: SyncApi = {
   status: isSyncConfigured() ? 'idle' : 'off',
   pending: 0,
+  lastSyncedAt: null,
+  pendingIn: () => 0,
   lastError: null,
   displayName: null,
   setDisplayName: notReady,
