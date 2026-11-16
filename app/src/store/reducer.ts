@@ -91,6 +91,7 @@ export type AppAction =
   | ({ type: 'comment/add'; expenseId: ID; commentId: ID; text: string } & Stamp)
   | ({ type: 'payment/add'; id: ID; input: PaymentInput } & Stamp)
   | ({ type: 'payment/delete'; id: ID } & Stamp)
+  | ({ type: 'payment/restore'; id: ID } & Stamp)
   /** Adds a whole Splitwise export at once (friends, group, expenses, payments) with one Activity entry. */
   | ({ type: 'import/apply'; plan: ImportPlan } & Stamp)
   | ({ type: 'settings/update'; patch: Partial<Settings> } & Stamp)
@@ -732,6 +733,20 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         paymentId: deleted.id,
         amount: deleted.amount,
         currency: deleted.currency,
+      });
+    }
+
+    case 'payment/restore': {
+      const existing = state.payments[action.id];
+      if (!existing || !existing.deletedAt) return state;
+      const restored: Payment = compact({ ...existing, deletedAt: undefined });
+      const next = { ...state, payments: { ...state.payments, [restored.id]: restored } };
+      // Logged as 'payment_added' so phones on an older build can still show it.
+      return addActivity(next, action, 'payment_added', text.paymentRestoredText(next, actorOf(action), restored), {
+        groupId: restored.groupId,
+        paymentId: restored.id,
+        amount: restored.amount,
+        currency: restored.currency,
       });
     }
 

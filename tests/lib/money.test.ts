@@ -7,7 +7,10 @@ import {
   formatCurrencyAmounts,
   formatMoney,
   minorToInputText,
+  isAmountSum,
+  limitSumDecimals,
   parseAmountInput,
+  parseAmountSum,
   splitEvenly,
   sumMinor,
   toMajor,
@@ -261,5 +264,55 @@ describe('formatCurrencyAmounts', () => {
 
   it('orders known currencies before unknown ones', () => {
     expect(['USD', 'XYZ', 'INR', 'ABC'].sort(compareCurrencyCodes)).toEqual(['INR', 'USD', 'ABC', 'XYZ']);
+  });
+});
+
+describe('amount sums', () => {
+  it('adds the terms', () => {
+    expect(parseAmountSum('120+80', 'INR')).toBe(20000);
+    expect(parseAmountSum(' 12.50 + 3.25 ', 'INR')).toBe(1575);
+    expect(parseAmountSum('1,000+2,500.50', 'INR')).toBe(350050);
+    expect(parseAmountSum('1+2+3', 'USD')).toBe(600);
+  });
+
+  it('works like parseAmountInput for a single amount', () => {
+    expect(parseAmountSum('120', 'INR')).toBe(12000);
+    expect(parseAmountSum('12.5', 'INR')).toBe(1250);
+    expect(parseAmountSum('', 'INR')).toBeNull();
+    expect(parseAmountSum('abc', 'INR')).toBeNull();
+  });
+
+  it('ignores one trailing plus while typing', () => {
+    expect(parseAmountSum('120+', 'INR')).toBe(12000);
+    expect(parseAmountSum('120+80+', 'INR')).toBe(20000);
+  });
+
+  it('rejects a leading plus, doubled plus and bad terms', () => {
+    expect(parseAmountSum('+', 'INR')).toBeNull();
+    expect(parseAmountSum('+5', 'INR')).toBeNull();
+    expect(parseAmountSum('1++2', 'INR')).toBeNull();
+    expect(parseAmountSum('120++', 'INR')).toBeNull();
+    expect(parseAmountSum('5+x', 'INR')).toBeNull();
+    expect(parseAmountSum('5+-3', 'INR')).toBeNull();
+  });
+
+  it('uses the currency decimals', () => {
+    expect(parseAmountSum('100+250', 'JPY')).toBe(350);
+    expect(parseAmountSum('10.5+1', 'JPY')).toBe(12);
+  });
+
+  it('spots sums', () => {
+    expect(isAmountSum('120+')).toBe(true);
+    expect(isAmountSum('120+80')).toBe(true);
+    expect(isAmountSum('12.5 + 1')).toBe(true);
+    expect(isAmountSum('120')).toBe(false);
+    expect(isAmountSum('+5')).toBe(false);
+    expect(isAmountSum('')).toBe(false);
+  });
+
+  it('limits decimals per term', () => {
+    expect(limitSumDecimals('12.505+3.255', 2)).toBe('12.50+3.25');
+    expect(limitSumDecimals('12.5+3.25', 2)).toBe('12.5+3.25');
+    expect(limitSumDecimals('10.5+1.2', 0)).toBe('10+1');
   });
 });

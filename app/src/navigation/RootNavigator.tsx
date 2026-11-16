@@ -14,6 +14,7 @@ import {
 } from '@react-navigation/bottom-tabs';
 import { colors, font, themed } from '../theme';
 import { HEADER_FONT_SIZE, Icon, IconButton, TITLE_FONT_FAMILY, TITLE_LETTER_SPACING, shadowStyle, useTitleFont } from '../ui';
+import { TAB_BAR_HEIGHT } from '../ui/floating';
 import type { RootStackParamList, TabParamList } from './types';
 
 import ActivityScreen from '../screens/activity/ActivityScreen';
@@ -225,7 +226,6 @@ export default function RootNavigator() {
 }
 
 const ADD_SIZE = 58;
-const TAB_BAR_HEIGHT = 56;
 
 const styles = themed((colors) => StyleSheet.create({
   addSlot: { flex: 1, alignItems: 'center' },

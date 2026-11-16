@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Pressable, StyleProp, StyleSheet, TextInput, View, ViewStyle } from 'react-native';
 import type { CurrencyCode } from '../types';
-import { currencyInfo } from '../lib/money';
+import { currencyInfo, isAmountSum, minorToInputText, parseAmountSum } from '../lib/money';
 import { colors, font, radius, spacing, themed } from '../theme';
 import { AppText } from './AppText';
 import { Icon } from './Icon';
@@ -20,6 +20,8 @@ export interface AmountFieldProps {
   onPress?: () => void;
   placeholder?: string;
   helper?: string;
+  /** Lets the text be a sum such as '120+80' (adds a + key; the total replaces it on blur). */
+  allowSum?: boolean;
   style?: StyleProp<ViewStyle>;
   testID?: string;
 }
@@ -29,8 +31,8 @@ const CHAR_WIDTH = 25; // ≈ width of one digit at AMOUNT_FONT
 const MAX_INPUT_WIDTH = 280;
 
 /** Keep digits and decimal separators only; parseAmountInput does the real validation. */
-function sanitize(text: string): string {
-  return text.replace(/[^0-9.,]/g, '');
+function sanitize(text: string, allowSum: boolean): string {
+  return text.replace(allowSum ? /[^0-9.,+]/g : /[^0-9.,]/g, '');
 }
 
 export function AmountField({
@@ -44,6 +46,7 @@ export function AmountField({
   onPress,
   placeholder,
   helper,
+  allowSum = false,
   style,
   testID,
 }: AmountFieldProps) {
@@ -75,7 +78,7 @@ export function AmountField({
   const amount = editable ? (
     <TextInput
       value={value}
-      onChangeText={(t) => onChangeText(sanitize(t))}
+      onChangeText={(t) => onChangeText(sanitize(t, allowSum))}
       placeholder={hint}
       placeholderTextColor={colors.textFaint}
       underlineColorAndroid="transparent"
@@ -85,7 +88,12 @@ export function AmountField({
       testID={testID}
       accessibilityLabel={`Amount in ${currency}`}
       onFocus={() => setFocused(true)}
-      onBlur={() => setFocused(false)}
+      onBlur={() => {
+        setFocused(false);
+        if (!allowSum) return;
+        const total = parseAmountSum(value, currency);
+        if (total !== null && isAmountSum(value)) onChangeText(minorToInputText(total, currency));
+      }}
       style={[styles.input, { width: inputWidth }, webNoOutline]}
     />
   ) : (
@@ -125,6 +133,20 @@ export function AmountField({
             </Pressable>
           )}
         </View>
+        {allowSum && editable ? (
+          <Pressable
+            onPress={() => {
+              if (value.trim() && !value.endsWith('+')) onChangeText(`${value}+`);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Add another amount"
+            testID="amount-plus"
+            hitSlop={4}
+            style={({ pressed }) => [styles.plusKey, pressed && styles.pressed]}
+          >
+            <Icon name="add" size={20} color={colors.primary} />
+          </Pressable>
+        ) : null}
       </View>
       {error ? (
         <AppText variant="caption" color={colors.danger} align="center" style={styles.message}>
@@ -168,6 +190,17 @@ const styles = themed((colors) => StyleSheet.create({
     borderColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  plusKey: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.sm,
   },
   amountWrap: { borderBottomWidth: 2, flexShrink: 1 },
   input: {

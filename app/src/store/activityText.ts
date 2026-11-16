@@ -68,6 +68,10 @@ export function paymentDeletedText(state: AppState, actorId: ID, p: Pick<Payment
   return `${subject(state, actorId)} deleted a payment${fromGroup(state, p.groupId)}: ${paymentClause(state, p)}.`;
 }
 
+export function paymentRestoredText(state: AppState, actorId: ID, p: Pick<Payment, 'fromId' | 'toId' | 'amount' | 'currency' | 'groupId'>): string {
+  return `${subject(state, actorId)} restored a payment${inGroup(state, p.groupId)}: ${paymentClause(state, p)}.`;
+}
+
 export function groupCreatedText(state: AppState, actorId: ID, g: Pick<Group, 'name'>): string {
   return `${subject(state, actorId)} created the group "${g.name}".`;
 }

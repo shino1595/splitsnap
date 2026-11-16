@@ -3,7 +3,7 @@ import { ME_ID } from '../types';
 import type { AppState, CurrencyCode, Expense, ExpenseDraft, ExpenseInput, ID, ISODate, Minor, MoneyShare, SplitInput } from '../types';
 import { computeOwed, defaultSplit, participantsOf, validatePayers } from '../lib/split';
 import { computeItemized, itemizedTotal } from '../lib/itemized';
-import { formatMoney, minorToInputText, parseAmountInput, sumMinor } from '../lib/money';
+import { formatMoney, minorToInputText, parseAmountSum, sumMinor } from '../lib/money';
 
 /** ME first, then everyone else once, in the given order. */
 export function normalizeParticipants(ids: ID[]): ID[] {
@@ -153,7 +153,7 @@ export function draftTotal(draft: ExpenseDraft): Minor | null {
     const total = itemizedTotal(draft.split.bill);
     return total > 0 ? total : null;
   }
-  const parsed = parseAmountInput(draft.amountText, draft.currency);
+  const parsed = parseAmountSum(draft.amountText, draft.currency);
   return parsed !== null && parsed > 0 ? parsed : null;
 }
 

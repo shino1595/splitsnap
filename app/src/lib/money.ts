@@ -237,6 +237,34 @@ export function parseAmountInput(
   return minor;
 }
 
+/** '120+80' → 20000 (minor units). A single amount works like parseAmountInput. A trailing '+' is ignored while typing ('120+' → 12000). '' / '+' / '+5' / any term parseAmountInput rejects → null. Terms can't be negative. */
+export function parseAmountSum(text: string, currency: CurrencyCode): Minor | null {
+  if (typeof text !== 'string') return null;
+  const trimmed = text.trim();
+  if (trimmed.indexOf('+') < 0) return parseAmountInput(trimmed, currency);
+  const body = trimmed.endsWith('+') ? trimmed.slice(0, -1) : trimmed;
+  let total = 0;
+  for (const term of body.split('+')) {
+    const minor = parseAmountInput(term, currency);
+    if (minor === null) return null;
+    total += minor;
+  }
+  return Number.isSafeInteger(total) ? total : null;
+}
+
+/** True when the text has a '+' after an amount ('120+', '120+80'). */
+export function isAmountSum(text: string): boolean {
+  return typeof text === 'string' && /[\d.,]\s*\+/.test(text);
+}
+
+/** limitDecimals applied to each term of a sum, so '12.505+3.255' becomes '12.50+3.25'. */
+export function limitSumDecimals(text: string, decimals: number): string {
+  return text
+    .split('+')
+    .map((term) => limitDecimals(term, decimals))
+    .join('+');
+}
+
 /** Amount → plain editable text without symbol/grouping, e.g. 139050 → '1390.50', 100000 → '1000'. */
 export function minorToInputText(minor: Minor, currency: CurrencyCode): string {
   const decimals = currencyDecimals(currency);

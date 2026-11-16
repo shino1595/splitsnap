@@ -744,3 +744,11 @@ Snack dependencies (versions pinned where Snack can't infer them):
   works. `tools\build-snack-launcher.ps1 -SdkVersion 55.0.0` builds a launcher for another SDK.
 - The photo libraries (expo-image-picker, expo-image-manipulator) are loaded with `import()` on
   first use, so a runtime that cannot load them only disables the photo buttons.
+
+---------------------------------------------------------------------------------------------
+## 11. Additions of 2026-11-16 (group summary, amount sums, Undo bar)
+
+- `groupLogic.groupSummaryMessage(state, group, debts, { myName, today })`: the whole group's debts as one chat message ('' as `myName` gives 'me' / 'I'). Shared from GroupBalances (**Share who pays whom**, testID `balances-share`) and the GroupDetail action row (**Share summary**).
+- `lib/money.parseAmountSum(text, currency)` and `isAmountSum(text)`: '120+80' → 20000; a trailing '+' is ignored while typing; `parseAmountInput` is unchanged. `AmountField` takes `allowSum` (keeps '+', shows a '+' key because number pads have none, and replaces a sum by its total on blur). Only the expense editor's main amount uses it; `draftLogic` and `expenseEditing` read the draft's amount text with `parseAmountSum`.
+- `ui/undo.ts` (pure store: `showUndo`, `runUndo`, `dismissUndo`, `currentUndo`, `subscribeUndo`) and `ui/UndoBar.tsx`, rendered once in `App.tsx` above the tab bar (`TAB_BAR_HEIGHT` lives in `ui/floating.ts`). ExpenseDetail and PaymentDetail delete at once and call `showUndo` instead of `confirmAsync`.
+- `StoreActions.restorePayment(id)` / reducer `payment/restore`: clears `deletedAt` and logs an activity entry with the existing type `payment_added` ('You restored a payment: …'), so phones on an older build can show it.

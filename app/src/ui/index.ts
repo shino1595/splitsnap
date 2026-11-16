@@ -36,3 +36,5 @@ export * from './pickTextFile';
 export * from './receiptNames';
 export * from './files';
 export * from './useReceiptSource';
+export * from './undo';
+export * from './UndoBar';

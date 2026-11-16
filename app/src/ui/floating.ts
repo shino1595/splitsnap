@@ -8,6 +8,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
  */
 export const FloatingBottomContext = React.createContext<number | undefined>(undefined);
 
+/** Height of the bottom tab bar, without the bottom inset (kept here so ui does not import navigation). */
+export const TAB_BAR_HEIGHT = 56;
+
 /** True when rendered inside a bottom-tab screen (the tab bar already covers the bottom inset). */
 export function useInTabs(): boolean {
   return React.useContext(BottomTabBarHeightContext) !== undefined;

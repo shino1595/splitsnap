@@ -47,6 +47,8 @@ export interface StoreActions {
   addPayment(input: PaymentInput): Payment;
   /** Soft delete. */
   deletePayment(id: ID): void;
+  /** Brings a deleted payment back (the Undo bar); no-op for an unknown or live one. */
+  restorePayment(id: ID): void;
   updateSettings(patch: Partial<Settings>): void;
   /** Demo data again; your profile, the OCR key and engine are kept. */
   resetToDemo(): void;
@@ -339,6 +341,10 @@ export function AppStoreProvider(props: { children: React.ReactNode }): React.JS
 
       deletePayment(id) {
         dispatch({ type: 'payment/delete', id, ...stamp() });
+      },
+
+      restorePayment(id) {
+        dispatch({ type: 'payment/restore', id, ...stamp() });
       },
 
       updateSettings(patch) {

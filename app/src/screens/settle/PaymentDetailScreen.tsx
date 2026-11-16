@@ -22,7 +22,7 @@ import {
   PersonAvatar,
   Screen,
   SectionHeader,
-  confirmAsync,
+  showUndo,
 } from '../../ui';
 import { paymentMethodInfo } from './paymentMethods';
 
@@ -47,25 +47,16 @@ export default function PaymentDetailScreen({ navigation, route }: RootScreenPro
   const payment = state.payments[paymentId];
   const deleted = !!payment?.deletedAt;
 
-  const sentence = payment
-    ? `${personName(state, payment.fromId)} paid ${personName(state, payment.toId, { you: 'you' })} ${formatMoney(payment.amount, payment.currency)}`
-    : '';
-
   const goBack = React.useCallback(() => {
     if (navigation.canGoBack()) navigation.goBack();
     else navigation.popTo('Tabs', { screen: 'Activity' });
   }, [navigation]);
 
-  const onDelete = React.useCallback(async () => {
-    const ok = await confirmAsync(
-      'Delete this payment?',
-      `“${sentence}” will be removed, and everyone’s balances go back to how they were before it was recorded.`,
-      { confirmText: 'Delete', destructive: true },
-    );
-    if (!ok) return;
+  const onDelete = React.useCallback(() => {
     actions.deletePayment(paymentId);
+    showUndo('Payment deleted', () => actions.restorePayment(paymentId));
     goBack();
-  }, [actions, paymentId, sentence, goBack]);
+  }, [actions, paymentId, goBack]);
 
   React.useLayoutEffect(() => {
     navigation.setOptions({

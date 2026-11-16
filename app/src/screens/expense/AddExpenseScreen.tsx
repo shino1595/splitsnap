@@ -9,7 +9,7 @@ import { useDraft } from '../../store/draft';
 import { personName } from '../../store/selectors';
 import { CATEGORIES, categoryInfo, guessCategory } from '../../lib/categories';
 import { formatDate, todayISO } from '../../lib/dates';
-import { CURRENCIES, currencyDecimals, minorToInputText } from '../../lib/money';
+import { CURRENCIES, currencyDecimals, formatMoney, isAmountSum, limitSumDecimals, minorToInputText } from '../../lib/money';
 import { frequencyLabel, RECURRENCE_FREQUENCIES } from '../../lib/recurrence';
 import { defaultSplit, describeSplit } from '../../lib/split';
 import { prepareImageForOcr } from '../../ocr/imagePrep';
@@ -41,7 +41,6 @@ import {
   impactText,
   isPayerMessage,
   lastCopyDate,
-  limitDecimals,
   myImpact,
   nextRepeatDate,
   payerWord,
@@ -283,7 +282,7 @@ export default function AddExpenseScreen({ navigation, route }: Props) {
       return;
     }
     const patch: Partial<ExpenseDraft> = { currency: code };
-    const amountText = limitDecimals(draft.amountText, currencyDecimals(code));
+    const amountText = limitSumDecimals(draft.amountText,currencyDecimals(code));
     if (amountText !== draft.amountText) patch.amountText = amountText;
     if (!sameDecimals) {
       // Amount-based splits and payer amounts were in the old currency's minor units.
@@ -428,7 +427,7 @@ export default function AddExpenseScreen({ navigation, route }: Props) {
           value={amountText}
           onChangeText={(text) => {
             touch('amount');
-            setDraft({ amountText: limitDecimals(text, currencyDecimals(draft.currency)) });
+            setDraft({ amountText: limitSumDecimals(text,currencyDecimals(draft.currency)) });
           }}
           currency={draft.currency}
           onPressCurrency={() => setPicker('currency')}
@@ -440,8 +439,11 @@ export default function AddExpenseScreen({ navigation, route }: Props) {
               ? billHasLines
                 ? 'Total of the itemized bill · tap to edit the items'
                 : 'Add the bill’s items to get the total'
-              : undefined
+              : total !== null && isAmountSum(draft.amountText)
+                ? `= ${formatMoney(total, draft.currency)}`
+                : undefined
           }
+          allowSum
           testID="amount"
         />
         <Divider />

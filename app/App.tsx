@@ -8,7 +8,7 @@ import RecoveryScreen from './src/screens/recovery/RecoveryScreen';
 import { DraftProvider } from './src/store/draft';
 import { SyncProvider } from './src/sync/SyncProvider';
 import { colors, setActiveTheme, themed, ThemeName } from './src/theme';
-import { AppText, CrashBoundary, DialogHost, loadTitleFont, sweepKeptReceipts, useFontSettled } from './src/ui';
+import { AppText, CrashBoundary, DialogHost, loadTitleFont, sweepKeptReceipts, UndoBar, useFontSettled } from './src/ui';
 
 function navigationThemeFor(name: ThemeName): Theme {
   const base = name === 'dark' ? DarkTheme : DefaultTheme;
@@ -118,6 +118,7 @@ export default function App() {
           </SyncProvider>
         </AppStoreProvider>
       </CrashBoundary>
+      <UndoBar />
       <DialogHost />
     </SafeAreaProvider>
   );

@@ -15,7 +15,7 @@ import type {
   SplitMethod,
 } from '../../../types';
 import { computeItemized, itemizedTotal } from '../../../lib/itemized';
-import { formatMoney, minorToInputText, parseAmountInput, splitEvenly, sumMinor } from '../../../lib/money';
+import { formatMoney, minorToInputText, parseAmountInput, parseAmountSum, splitEvenly, sumMinor } from '../../../lib/money';
 import { nextOccurrenceAfter } from '../../../lib/recurrence';
 import { computeOwed } from '../../../lib/split';
 import { listFriends } from '../../../store/selectors';
@@ -58,10 +58,10 @@ export { limitDecimals } from '../../../lib/money';
 /** Why the typed total can't be used, in plain words; null when it is a valid amount above zero. */
 export function amountProblem(text: string, currency: CurrencyCode): string | null {
   if (!text.trim()) return 'Enter an amount';
-  const parsed = parseAmountInput(text, currency);
+  const parsed = parseAmountSum(text, currency);
   if (parsed === null) {
-    const whole = text.split(/[.]/)[0].replace(/\D/g, '').replace(/^0+/, '');
-    return whole.length > 13 ? 'That amount is too large' : 'Enter a valid amount, like 1250.50';
+    const tooLarge = text.split('+').some((term) => term.split(/[.]/)[0].replace(/\D/g, '').replace(/^0+/, '').length > 13);
+    return tooLarge ? 'That amount is too large' : 'Enter a valid amount, like 1250.50';
   }
   return parsed > 0 ? null : 'Enter an amount above zero';
 }

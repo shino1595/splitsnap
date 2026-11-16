@@ -167,6 +167,16 @@ describe('totals and payers', () => {
     expect(draftTotal(ready({ amountText: 'abc' }))).toBeNull();
   });
 
+  it('adds up a typed sum', () => {
+    expect(draftTotal(ready({ amountText: '120+80' }))).toBe(20000);
+    expect(draftTotal(ready({ amountText: '120+' }))).toBe(12000);
+    expect(draftTotal(ready({ amountText: '+5' }))).toBeNull();
+    const result = evaluateDraft(ready({ amountText: '120+80' }));
+    expect(result.total).toBe(20000);
+    expect(result.input?.total).toBe(20000);
+    expect(result.errors).toEqual([]);
+  });
+
   it('uses the bill total for itemized splits', () => {
     const draft = itemizedDraft(demoDinnerBill());
     expect(draftTotal({ ...draft, amountText: '5' })).toBe(146000);

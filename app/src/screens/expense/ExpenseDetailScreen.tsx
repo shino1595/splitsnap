@@ -19,7 +19,6 @@ import {
   AvatarStack,
   Banner,
   Card,
-  confirmAsync,
   Divider,
   EmptyState,
   Icon,
@@ -27,6 +26,7 @@ import {
   PersonAvatar,
   Screen,
   SectionHeader,
+  showUndo,
   TextField,
   toneColor,
   useReceiptSource,
@@ -409,17 +409,13 @@ export default function ExpenseDetailScreen({ navigation, route }: Props) {
 
   const onEdit = React.useCallback(() => navigation.navigate('AddExpense', { expenseId }), [navigation, expenseId]);
 
-  const repeats = !!expense?.recurrence;
-  const onDelete = React.useCallback(async () => {
-    const ok = await confirmAsync(
-      'Delete this expense?',
-      `"${description}" will be removed from everyone’s balances${repeats ? ' and stop repeating' : ''}. You can restore it from the Activity tab.`,
-      { confirmText: 'Delete', destructive: true },
-    );
-    if (!ok) return;
+  // Deleting only sets deletedAt (the repeat setting stays), so Undo brings back everything.
+  const onDelete = React.useCallback(() => {
+    const short = description.length > 40 ? `${description.slice(0, 40)}…` : description;
     actions.deleteExpense(expenseId);
+    showUndo(`"${short}" deleted`, () => actions.restoreExpense(expenseId));
     goBack();
-  }, [actions, description, repeats, expenseId, goBack]);
+  }, [actions, description, expenseId, goBack]);
 
   React.useLayoutEffect(() => {
     navigation.setOptions({

@@ -53,6 +53,7 @@ If the phone shows an error screen, tap **View error log** to see the details.
   "simplify debts" setting.
 - Each group has a timeline by month, its balances (who owes whom, with Settle up and Remind),
   totals with charts (by category, month and payer) and a CSV export.
+- **Share who pays whom** (on Balances, or **Share summary** on the group) sends the whole group's debts as one message for the group chat.
 - Groups can be archived, and deleted once everyone is settled up.
 - Each group has a **theme**: Default, Beach, Mountains, Home, Office, Friends, Fitness, Groceries,
   Music or Dining. Pick it when you create the group or in its settings (**Theme**, four to a row
@@ -84,7 +85,8 @@ If the phone shows an error screen, tap **View error log** to see the details.
 - **Split:** equally, exact amounts, percentages, shares, adjustments, or **item by item**.
 - Expense details show who paid, who owes what, the full per-person bill breakdown and the bill
   photo. You can also comment.
-- Deleted expenses can be restored.
+- Deleting an expense or a payment shows an **Undo** bar for a few seconds instead of asking first. Deleted expenses can also be restored later from the Activity tab.
+- In the amount box you can type a sum such as 120+80 (the **+** key is next to the box); it shows the total and saves 200.
 
 **Settling up**
 - Record payments by Cash, UPI, Bank or Other, from a group, a friend or the overall
