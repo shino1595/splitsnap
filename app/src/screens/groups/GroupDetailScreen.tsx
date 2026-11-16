@@ -13,16 +13,17 @@ import {
 } from '../../store/selectors';
 import { buildCsv } from '../../lib/csv';
 import { todayISO } from '../../lib/dates';
+import { ME_ID } from '../../types';
 import { useSync } from '../../sync/SyncProvider';
 import { colors, spacing, themed } from '../../theme';
-import { Banner, Chip, EmptyState, Fab, Icon, IconButton, Screen, shareCsv, showAlert } from '../../ui';
-import { hasLeft, sharedSummary } from '../sharing/sharingLogic';
+import { Banner, Chip, EmptyState, Fab, Icon, IconButton, Screen, shareCsv, shareText, showAlert } from '../../ui';
+import { displayNameDraft, hasLeft, sharedSummary } from '../sharing/sharingLogic';
 import { GroupHeader } from './components/GroupHeader';
 import type { GroupAction } from './components/GroupHeader';
 import { MissingGroup } from './components/MissingGroup';
 import { TimelineList } from './components/TimelineList';
 import { involvesMe, slugify, sortDebtsForMe } from './components/groupMeta';
-import { csvPersonIds } from './groupLogic';
+import { csvPersonIds, groupSummaryMessage } from './groupLogic';
 
 type Props = RootScreenProps<'GroupDetail'>;
 
@@ -105,12 +106,18 @@ export default function GroupDetailScreen({ navigation, route }: Props) {
   const leftCount = group.memberIds.filter((id) => hasLeft(sharedInfo, id)).length;
   const summary = sharedSummary(onSplitSnap, group.memberIds.length, leftCount);
 
+  const shareSummary = () => {
+    const myName = displayNameDraft(sync.displayName, state.people[ME_ID]?.name);
+    void shareText(groupSummaryMessage(state, group, groupDebts(state, groupId), { myName, today: todayISO() }), `${group.name}: who pays whom`);
+  };
+
   const headerActions: GroupAction[] = [
     { key: 'settle', icon: 'cash-outline', label: 'Settle up', primary: true, onPress: () => navigation.navigate('SettleUp', { groupId }) },
     ...(sharing && !shared
       ? [{ key: 'share', icon: 'share-social-outline', label: 'Share', accessibilityLabel: 'Share this group with its members', onPress: openShare }]
       : []),
     { key: 'balances', icon: 'swap-horizontal', label: 'Balances', onPress: openBalances },
+    { key: 'summary', icon: 'chatbubble-outline', label: 'Share summary', accessibilityLabel: 'Share who pays whom in this group', onPress: shareSummary },
     { key: 'totals', icon: 'bar-chart-outline', label: 'Totals', onPress: () => navigation.navigate('GroupTotals', { groupId }) },
     { key: 'export', icon: 'share-outline', label: 'Export CSV', accessibilityLabel: 'Export expenses as CSV', onPress: () => void exportCsv() },
     { key: 'scan', icon: 'scan-outline', label: 'Scan bill', accessibilityLabel: 'Scan a bill for this group', onPress: scanBill },

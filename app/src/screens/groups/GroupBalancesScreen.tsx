@@ -25,7 +25,10 @@ import { BalanceBadge, DebtText } from './components/BalanceBits';
 import { ListCard } from './components/ListCard';
 import { MissingGroup } from './components/MissingGroup';
 import { sortDebtsForMe } from './components/groupMeta';
-import { memberNets, reminderMessage, simplifyExplanation } from './groupLogic';
+import { groupSummaryMessage, memberNets, reminderMessage, simplifyExplanation } from './groupLogic';
+import { displayNameDraft } from '../sharing/sharingLogic';
+import { useSync } from '../../sync/SyncProvider';
+import { todayISO } from '../../lib/dates';
 import type { MemberNet } from './groupLogic';
 
 type Props = RootScreenProps<'GroupBalances'>;
@@ -99,6 +102,7 @@ function DebtCard({ state, debt, onSettle, onRemind }: DebtCardProps) {
 export default function GroupBalancesScreen({ navigation, route }: Props) {
   const { groupId } = route.params;
   const state = useAppState();
+  const sync = useSync();
   const actions = useActions();
   const group = state.groups[groupId];
 
@@ -148,6 +152,11 @@ export default function GroupBalancesScreen({ navigation, route }: Props) {
     );
   }
 
+  const shareSummary = () => {
+    const myName = displayNameDraft(sync.displayName, state.people[ME_ID]?.name);
+    void shareText(groupSummaryMessage(state, group, data.debts, { myName, today: todayISO() }), `${group.name}: who pays whom`);
+  };
+
   const explanation = simplifyExplanation(group.simplifyDebts, data.pairwiseCount, data.simplifiedCount);
 
   return (
@@ -158,6 +167,8 @@ export default function GroupBalancesScreen({ navigation, route }: Props) {
           <MemberRow key={row.id} state={state} row={row} />
         ))}
       </ListCard>
+
+      <Button title="Share who pays whom" icon="share-outline" variant="outline" onPress={shareSummary} fullWidth style={styles.shareAll} testID="balances-share" />
 
       <SectionHeader title={data.debts.length > 0 ? `Who owes whom · ${data.debts.length}` : 'Who owes whom'} />
       {data.debts.length > 0 ? (
@@ -205,6 +216,7 @@ export default function GroupBalancesScreen({ navigation, route }: Props) {
 const styles = themed((colors) => StyleSheet.create({
   flex: { flex: 1, minWidth: 0 },
   firstHeader: { paddingTop: 0 },
+  shareAll: { marginTop: spacing.lg },
   memberRow: {
     flexDirection: 'row',
     alignItems: 'center',

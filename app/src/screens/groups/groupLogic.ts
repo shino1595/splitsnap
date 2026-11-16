@@ -20,7 +20,7 @@ import type {
 import type { GroupTotals, TimelineEntry } from '../../store/selectors';
 import { groupMembers, groupNets, listGroups, myGroupBalance, personName } from '../../store/selectors';
 import { expenseImpact } from '../../lib/balances';
-import { monthKey, monthLabel } from '../../lib/dates';
+import { formatDate, monthKey, monthLabel } from '../../lib/dates';
 import { formatCurrencyAmounts, formatMoney } from '../../lib/money';
 import { firstName, negativePart, plural, positivePart } from './components/groupMeta';
 
@@ -149,6 +149,29 @@ export function reminderMessage(state: AppState, group: Pick<Group, 'name'>, deb
   const debtor = firstName(personName(state, debt.fromId));
   const owedTo = debt.toId === ME_ID ? 'me' : personName(state, debt.toId);
   return `Hi ${debtor}! Friendly reminder from SplitSnap: you owe ${owedTo} ${amount} for "${group.name}". Settle up when you get a chance. Thanks!`;
+}
+
+/** The whole group's debts as one chat message. myName = how the sender is named; '' means 'me' / 'I'. */
+export function groupSummaryMessage(
+  state: AppState,
+  group: Pick<Group, 'name'>,
+  debts: Debt[],
+  opts: { myName: string; today: ISODate },
+): string {
+  const date = formatDate(opts.today, 'long');
+  if (debts.length === 0) return `${group.name}: everyone is settled up (${date}). Sent from SplitSnap.`;
+  const nameOf = (id: ID, asSubject: boolean) => {
+    if (id !== ME_ID) return personName(state, id);
+    if (opts.myName) return opts.myName;
+    return asSubject ? 'I' : 'me';
+  };
+  const lines = debts.map((d) => {
+    const from = nameOf(d.fromId, true);
+    const verb = from === 'I' ? 'pay' : 'pays';
+    return `• ${from} ${verb} ${nameOf(d.toId, false)} ${formatMoney(d.amount, d.currency)}`;
+  });
+  const closing = `${debts.length === 1 ? '1 payment settles' : `${debts.length} payments settle`} everything.`;
+  return `${group.name}: who pays whom (${date})\n\n${lines.join('\n')}\n\n${closing} Sent from SplitSnap.`;
 }
 
 /** The note under the debts list, depending on the simplify setting and how many payments it saves. */

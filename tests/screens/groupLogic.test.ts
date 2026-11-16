@@ -18,6 +18,7 @@ import {
   paymentDetail,
   paymentLine,
   percentOf,
+  groupSummaryMessage,
   reminderMessage,
   simplifyExplanation,
 } from '../../app/src/screens/groups/groupLogic';
@@ -303,5 +304,40 @@ describe('groupLogic: theme in the editor patch', () => {
     expect(changedGroupFields(start, { ...start, theme: 'beach' })).toStrictEqual({ theme: 'beach' });
     expect(changedGroupFields({ ...start, theme: 'beach' }, { ...start, theme: 'default' })).toStrictEqual({ theme: 'default' });
     expect(changedGroupFields({ ...start, theme: 'beach' }, start)).toStrictEqual({ theme: 'default' });
+  });
+});
+
+describe('groupLogic: who pays whom summary', () => {
+  const group = { name: 'Trip' };
+  const opts = { myName: 'Sam', today: '2026-11-12' };
+
+  it('lists every debt and counts the payments', () => {
+    const debts: Debt[] = [
+      { fromId: A, toId: ME_ID, amount: 120000, currency: 'INR' },
+      { fromId: B, toId: C, amount: 35000, currency: 'INR' },
+      { fromId: ME_ID, toId: C, amount: 1200, currency: 'USD' },
+    ];
+    const text = groupSummaryMessage(makeState(), group, debts, opts);
+    expect(text.split('\n')[0]).toBe('Trip: who pays whom (Nov 12, 2026)');
+    expect(text).toContain('• Aarav pays Sam ₹1,200.00');
+    expect(text).toContain('• Bhavna pays Chirag ₹350.00');
+    expect(text).toContain('• Sam pays Chirag $12.00');
+    expect(text).toContain('3 payments settle everything. Sent from SplitSnap.');
+  });
+
+  it('says me and I when the sender has no name', () => {
+    const debts: Debt[] = [
+      { fromId: A, toId: ME_ID, amount: 10000, currency: 'INR' },
+      { fromId: ME_ID, toId: B, amount: 5000, currency: 'INR' },
+    ];
+    const text = groupSummaryMessage(makeState(), group, debts, { ...opts, myName: '' });
+    expect(text).toContain('• Aarav pays me ₹100.00');
+    expect(text).toContain('• I pay Bhavna ₹50.00');
+  });
+
+  it('handles one payment and none', () => {
+    const one = groupSummaryMessage(makeState(), group, [{ fromId: A, toId: B, amount: 100, currency: 'INR' }], opts);
+    expect(one).toContain('1 payment settles everything.');
+    expect(groupSummaryMessage(makeState(), group, [], opts)).toBe('Trip: everyone is settled up (Nov 12, 2026). Sent from SplitSnap.');
   });
 });
